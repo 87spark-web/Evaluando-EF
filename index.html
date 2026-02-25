@@ -1,0 +1,3784 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Evaluando Educación Física - PROFEf: aplicación para evaluar el desempeño en Educación Física">
+    <meta name="theme-color" content="#001f3f">
+    <title>Evaluando Educación Física | PROFEf</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/profef%20mono.png">
+    <link rel="apple-touch-icon" href="icons/profef%20mono.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* ═══════════════════════════════════════════
+           GLOBAL VARIABLES & BASE STYLES
+           ═══════════════════════════════════════════ */
+        :root {
+            --primary: #001f3f;
+            --primary-light: #c9a67d;
+            --primary-dark: #001122;
+            --bg: #FAFAFA;
+            --gray: #E0E0E0;
+            --gray-dark: #9E9E9E;
+            --header-h: 60px;
+            --bottom-nav-h: 64px;
+            --sidebar-w: 220px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Login Screen ── */
+        #loginScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+        }
+
+        .login-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 48px 36px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+            max-width: 400px;
+            width: 90%;
+            animation: fadeUp .5s ease;
+        }
+
+        .login-card h1 {
+            font-size: 1.5rem;
+            color: var(--primary);
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .login-card .subtitle {
+            color: var(--gray-dark);
+            font-size: .85rem;
+            margin-bottom: 32px;
+        }
+
+        .login-card .brand {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: var(--primary-dark);
+            margin-bottom: 2px;
+        }
+
+        .login-card .brand span {
+            color: var(--primary-light);
+        }
+
+        .login-card .login-logo {
+            max-width: 100%;
+            height: auto;
+            max-height: 90px;
+            margin-bottom: 12px;
+            object-fit: contain;
+        }
+
+        .google-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            border: 2px solid var(--gray);
+            border-radius: 12px;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            color: #333;
+        }
+
+        .google-btn:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(46, 125, 50, .18);
+            transform: translateY(-1px);
+        }
+
+        .google-btn img {
+            width: 22px;
+            height: 22px;
+        }
+
+        /* ═══════════════════════════════════════════
+           APP SHELL & NAVIGATION
+           ═══════════════════════════════════════════ */
+        #appShell {
+            display: none;
+        }
+
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-h);
+            background: var(--primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 1050;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+        }
+
+        .header-brand {
+            font-weight: 900;
+            font-size: 1.15rem;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-brand .ef-label {
+            font-weight: 400;
+            font-size: .75rem;
+            opacity: .85;
+            display: none;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sync-badge {
+            font-size: .7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
+
+        .sync-badge.online {
+            background: rgba(255, 255, 255, .2);
+            color: #fff;
+        }
+
+        .sync-badge.offline {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .sync-badge.syncing {
+            background: rgba(255, 255, 255, .3);
+            color: #fff;
+            animation: pulse 1.5s infinite;
+        }
+
+        .sync-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .sync-btn:hover {
+            color: #fff;
+        }
+
+        .sync-btn:active {
+            transform: scale(0.95);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .user-info img {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, .5);
+        }
+
+        .user-info span {
+            font-size: .85rem;
+            font-weight: 500;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Sidebar (desktop ≥768) ── */
+        .app-sidebar {
+            position: fixed;
+            top: var(--header-h);
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-w);
+            background: #fff;
+            border-right: 1px solid var(--gray);
+            display: none;
+            flex-direction: column;
+            padding-top: 12px;
+            z-index: 1040;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: #555;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: .95rem;
+            border-left: 3px solid transparent;
+            transition: all .15s;
+        }
+
+        .sidebar-link:hover {
+            background: #f5f5f5;
+            color: var(--primary);
+        }
+
+        .sidebar-link.active {
+            color: var(--primary);
+            background: rgba(46, 125, 50, .06);
+            border-left-color: var(--primary);
+            font-weight: 700;
+        }
+
+        .sidebar-link i {
+            font-size: 1.3rem;
+        }
+
+        /* ── Bottom Nav (mobile <768) ── */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--bottom-nav-h);
+            background: #fff;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid var(--gray);
+            z-index: 1040;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, .06);
+        }
+
+        .bottom-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            text-decoration: none;
+            color: var(--gray-dark);
+            font-size: .65rem;
+            font-weight: 600;
+            padding: 6px;
+            transition: color .15s;
+        }
+
+        .bottom-link i {
+            font-size: 1.35rem;
+            margin-bottom: 2px;
+        }
+
+        .bottom-link.active {
+            color: var(--primary);
+        }
+
+        /* ═══════════════════════════════════════════
+           CONTENT SECTIONS & COMPONENTS
+           ═══════════════════════════════════════════ */
+        .main-content {
+            margin-top: var(--header-h);
+            padding: 20px 16px;
+            padding-bottom: calc(var(--bottom-nav-h) + 20px);
+            min-height: calc(100vh - var(--header-h));
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeUp .3s ease;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* ── Cards ── */
+        .ef-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: box-shadow .2s;
+        }
+
+        .ef-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .1);
+        }
+
+        .ef-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .ef-card-header h5 {
+            margin: 0;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .ef-card .badge-nivel {
+            font-size: .7rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge-preescolar {
+            background: #E1BEE7;
+            color: #6A1B9A;
+        }
+
+        .badge-primaria {
+            background: #C8E6C9;
+            color: #2E7D32;
+        }
+
+        .badge-secundaria {
+            background: #BBDEFB;
+            color: #1565C0;
+        }
+
+        .ef-card .meta {
+            font-size: .8rem;
+            color: var(--gray-dark);
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btns button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background .15s;
+        }
+
+        .action-btns .btn-edit {
+            color: #1565C0;
+        }
+
+        .action-btns .btn-edit:hover {
+            background: #E3F2FD;
+        }
+
+        .action-btns .btn-delete {
+            color: #C62828;
+        }
+
+        .action-btns .btn-delete:hover {
+            background: #FFEBEE;
+        }
+
+        .btn-primary-ef {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary-ef:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(46, 125, 50, .3);
+        }
+
+        .btn-outline-ef {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 8px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-outline-ef:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-dark);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: block;
+            opacity: .5;
+        }
+
+        .empty-state h5 {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        /* ═══════════════════════════════════════════
+           MODULES (ESCUELAS, RASGOS, EVALUACIONES)
+           ═══════════════════════════════════════════ */
+
+        /* ── Escuelas / Grupos ── */
+        .school-card {
+            background: #fff;
+        }
+
+        /* ── Students Table ── */
+        .student-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .student-table th {
+            background: var(--bg);
+            padding: 10px 12px;
+            font-size: .8rem;
+            color: var(--gray-dark);
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 2px solid var(--gray);
+        }
+
+        .student-table td {
+            padding: 10px 12px;
+            font-size: .9rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .student-table tr:hover td {
+            background: #f8fdf8;
+        }
+
+        /* ── Toast ── */
+        .save-toast {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: var(--primary);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: .9rem;
+            box-shadow: 0 4px 20px rgba(46, 125, 50, .3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 2000;
+            animation: fadeUp .3s ease;
+            transition: opacity .3s;
+        }
+
+        /* ── Breadcrumb ── */
+        .ef-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .ef-breadcrumb button {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: .85rem;
+            transition: background .15s;
+        }
+
+        .ef-breadcrumb button:hover {
+            background: rgba(46, 125, 50, .08);
+        }
+
+        .ef-breadcrumb .sep {
+            color: var(--gray-dark);
+            font-size: .8rem;
+        }
+
+        .ef-breadcrumb .current {
+            color: #333;
+            font-weight: 700;
+            font-size: .85rem;
+        }
+
+        /* ── Rasgos Module ── */
+        .pct-bar-wrap {
+            background: var(--gray);
+            border-radius: 10px;
+            height: 28px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .pct-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width .3s ease, background .3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .8rem;
+            font-weight: 700;
+            color: #fff;
+            min-width: 40px;
+        }
+
+        .pct-bar-fill.ok {
+            background: var(--primary);
+        }
+
+        .pct-bar-fill.warn {
+            background: #FF9800;
+        }
+
+        .pct-bar-fill.over {
+            background: #F44336;
+        }
+
+        .pct-bar-fill.perfect {
+            background: var(--primary);
+            box-shadow: 0 0 12px rgba(46, 125, 50, .4);
+        }
+
+        .rasgo-item {
+            background: #fff;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: box-shadow .2s;
+        }
+
+        .rasgo-item:hover {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+        }
+
+        .rasgo-item .rasgo-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: .95rem;
+        }
+
+        .rasgo-item .rasgo-pct {
+            width: 80px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .rasgo-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 12px;
+        }
+
+        .rasgo-input-row .flex-grow-1 {
+            flex: 1;
+        }
+
+        .nivel-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .nivel-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: .75rem;
+            font-weight: 600;
+            border: none;
+        }
+
+        .nivel-chip.n1 {
+            background: #FFCDD2;
+            color: #C62828;
+        }
+
+        .nivel-chip.n2 {
+            background: #FFE0B2;
+            color: #E65100;
+        }
+
+        .nivel-chip.n3 {
+            background: #C8E6C9;
+            color: #2E7D32;
+        }
+
+        .nivel-chip.n4 {
+            background: #BBDEFB;
+            color: #1565C0;
+        }
+
+        .template-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .btn-tpl {
+            background: #fff;
+            border: 2px solid var(--gray);
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #555;
+        }
+
+        .btn-tpl:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Evaluation Module ── */
+        .eval-level-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .eval-level-btn {
+            flex: 1;
+            min-width: 70px;
+            padding: 12px 6px;
+            border: 2px solid var(--gray);
+            border-radius: 12px;
+            background: #fff;
+            text-align: center;
+            cursor: pointer;
+            transition: all .2s;
+            font-size: .75rem;
+            font-weight: 700;
+            line-height: 1.2;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .eval-level-btn:hover {
+            border-color: var(--primary-light);
+        }
+
+        .eval-level-btn.selected-1 {
+            background: #FFCDD2;
+            border-color: #C62828;
+            color: #C62828;
+        }
+
+        .eval-level-btn.selected-2 {
+            background: #FFE0B2;
+            border-color: #E65100;
+            color: #E65100;
+        }
+
+        .eval-level-btn.selected-3 {
+            background: #C8E6C9;
+            border-color: #2E7D32;
+            color: #2E7D32;
+        }
+
+        .eval-level-btn.selected-4 {
+            background: #BBDEFB;
+            border-color: #1565C0;
+            color: #1565C0;
+        }
+
+        .eval-level-btn .lvl-num {
+            font-size: 1.3rem;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .eval-rasgo-card {
+            background: #fff;
+            border: 1px solid #f0f0f0;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .eval-rasgo-card .rasgo-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .eval-rasgo-card .rasgo-head strong {
+            font-size: .95rem;
+        }
+
+        .eval-rasgo-card .rasgo-head .badge {
+            font-size: .75rem;
+        }
+
+        .grade-display {
+            background: var(--primary);
+            color: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .grade-display .grade-number {
+            font-size: 3rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .grade-display .grade-label {
+            font-size: .85rem;
+            opacity: .8;
+            margin-top: 4px;
+        }
+
+        .grade-display.preescolar {
+            background: linear-gradient(135deg, #7B1FA2, #9C27B0);
+        }
+
+        .grade-override {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .grade-override input {
+            width: 80px;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border-radius: 10px;
+        }
+
+        .comment-predefined {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .comment-chip {
+            background: #f5f5f5;
+            border: 1px solid var(--gray);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: .78rem;
+            cursor: pointer;
+            transition: all .15s;
+            font-weight: 500;
+        }
+
+        .comment-chip:hover {
+            background: #e8f5e9;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .student-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .student-status.evaluated {
+            background: var(--primary);
+        }
+
+        .student-status.pending {
+            background: var(--gray);
+        }
+
+        /* ── Reports Module ── */
+        .report-preview {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 16px;
+        }
+
+        .report-header .report-logo {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 8px;
+        }
+
+        .report-header h3 {
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+
+        .report-header .report-meta {
+            font-size: .8rem;
+            color: #666;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+
+        .report-table th {
+            background: var(--primary);
+            color: #fff;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: .8rem;
+        }
+
+        .report-table th:first-child {
+            border-radius: 8px 0 0 0;
+        }
+
+        .report-table th:last-child {
+            border-radius: 0 8px 0 0;
+        }
+
+        .report-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .report-table tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .report-table tr:hover {
+            background: #e8f5e9;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .report-tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .report-tab {
+            padding: 8px 20px;
+            border: 2px solid var(--gray);
+            border-radius: 10px;
+            background: #fff;
+            font-weight: 600;
+            font-size: .85rem;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .report-tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .config-tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .config-tab-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--gray);
+            border-radius: 10px;
+            background: #fff;
+            font-weight: 600;
+            font-size: .85rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all .2s;
+            color: #555;
+        }
+
+        .config-tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        @media print {
+            @page {
+                margin: 0;
+                size: auto;
+            }
+
+            body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            body * {
+                visibility: hidden;
+            }
+
+            #reportPrintArea,
+            #reportPrintArea * {
+                visibility: visible;
+            }
+
+            #reportPrintArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 10mm !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            .app-header,
+            .app-sidebar,
+            .bottom-nav,
+            .report-actions,
+            .report-tab-bar,
+            .ef-card:not(.report-preview),
+            h4,
+            .ef-breadcrumb,
+            .sync-badge,
+            .sidebar-link {
+                display: none !important;
+            }
+        }
+
+        /* ── Acerca de (About) ── */
+        .about-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .about-logo {
+            width: auto;
+            max-width: 140px;
+            height: auto;
+            max-height: 100px;
+            margin-bottom: 16px;
+            object-fit: contain;
+        }
+
+        .about-title {
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+
+        .about-version {
+            color: #888;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .about-desc {
+            color: #555;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* ═══════════════════════════════════════════
+           ANIMATIONS & RESPONSIVE
+           ═══════════════════════════════════════════ */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: .6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: .6;
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (min-width: 768px) {
+            .bottom-nav {
+                display: none;
+            }
+
+            .app-sidebar {
+                display: flex;
+            }
+
+            .main-content {
+                margin-left: var(--sidebar-w);
+                padding-bottom: 40px;
+                max-width: 900px;
+            }
+
+            .header-brand .ef-label {
+                display: inline;
+            }
+
+            .user-info span {
+                max-width: 180px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .app-sidebar {
+                display: none;
+            }
+
+            .user-info span {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding-bottom: calc(var(--bottom-nav-h) + 24px);
+            }
+
+            .header-brand .ef-label {
+                display: none;
+            }
+
+            /* Responsive fixes for mobile forms and lists */
+            .student-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .student-item .d-flex {
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .eval-level-group {
+                flex-wrap: wrap;
+            }
+
+            .eval-level-btn {
+                flex: 1 1 45%;
+                min-width: 0;
+                padding: 12px 6px;
+            }
+        }
+
+        /* Tablet adjustments */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .header-brand .ef-label {
+                display: inline;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ════════════ LOGIN SCREEN ════════════ -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <img src="icons/profef 1.png" alt="PROFEf" class="login-logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div class="brand" style="display:none;">PROF<span>Ef</span></div>
+            <p class="subtitle mt-3">Programa de Fortalecimiento en Educación Física</p>
+            <h1>Evaluando Educación Física</h1>
+            <p style="color:#888; font-size:.85rem; margin-bottom:28px;">Inicia sesión para gestionar tus evaluaciones
+            </p>
+            <button class="google-btn" id="btnGoogleLogin" onclick="handleGoogleLogin()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                Iniciar sesión con Google
+            </button>
+        </div>
+    </div>
+
+    <!-- ════════════ APP SHELL ════════════ -->
+    <div id="appShell">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <img src="icons/profef%20bco.png" alt="PROFEf" height="34"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                <span style="display:none;">PROF<span style="color:var(--primary-light)">Ef</span></span>
+                <div class="ef-label ms-2">Evaluando Educación Física</div>
+            </div>
+            <div class="header-right">
+                <button class="sync-btn" onclick="forceSync()" title="Forzar Sincronización" id="syncBtnElem">
+                    <i class="bi bi-arrow-repeat"></i>
+                </button>
+                <div class="sync-badge online" id="syncBadge">
+                    <i class="bi bi-wifi"></i> <span id="syncText">En línea</span>
+                </div>
+                <div class="user-info" id="userInfo" onclick="handleSignOut()" title="Cerrar sesión">
+                    <span id="userName"></span>
+                    <img id="userPhoto" src="" alt="User">
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar (desktop) -->
+        <nav class="app-sidebar">
+            <a href="#" class="sidebar-link active" data-section="dashboard" onclick="navigateTo('dashboard', event)">
+                <i class="bi bi-house-door"></i> Inicio
+            </a>
+            <a href="#" class="sidebar-link" data-section="evaluacion" onclick="navigateTo('evaluacion', event)">
+                <i class="bi bi-clipboard-check"></i> Evaluación
+            </a>
+            <a href="#" class="sidebar-link" data-section="reportes" onclick="navigateTo('reportes', event)">
+                <i class="bi bi-bar-chart-line"></i> Reportes
+            </a>
+            <a href="#" class="sidebar-link" data-section="configuracion" onclick="navigateTo('configuracion', event)">
+                <i class="bi bi-gear"></i> Configuración
+            </a>
+            <a href="#" class="sidebar-link" data-section="acerca" onclick="navigateTo('acerca', event)">
+                <i class="bi bi-info-circle"></i> Acerca de
+            </a>
+        </nav>
+
+        <!-- Bottom Nav (mobile) -->
+        <nav class="bottom-nav">
+            <a href="#" class="bottom-link active" data-section="dashboard" onclick="navigateTo('dashboard', event)">
+                <i class="bi bi-house-door"></i> Inicio
+            </a>
+            <a href="#" class="bottom-link" data-section="evaluacion" onclick="navigateTo('evaluacion', event)">
+                <i class="bi bi-clipboard-check"></i> Eval
+            </a>
+            <a href="#" class="bottom-link" data-section="reportes" onclick="navigateTo('reportes', event)">
+                <i class="bi bi-bar-chart-line"></i> Rep
+            </a>
+            <a href="#" class="bottom-link" data-section="configuracion" onclick="navigateTo('configuracion', event)">
+                <i class="bi bi-gear"></i> Config
+            </a>
+            <a href="#" class="bottom-link" data-section="acerca" onclick="navigateTo('acerca', event)">
+                <i class="bi bi-info-circle"></i> Info
+            </a>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- ── DASHBOARD VIEW ── -->
+            <section class="content-section active" id="secDashboard">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0" style="color:#333;">
+                        <i class="bi bi-house-door me-2" style="color:var(--primary)"></i>Inicio
+                    </h4>
+                </div>
+
+                <div class="row mb-4">
+                    <!-- General Stats -->
+                    <div class="col-md-4 mb-3">
+                        <div class="ef-card h-100 text-center py-4">
+                            <i class="bi bi-building display-4" style="color: var(--primary-light);"></i>
+                            <h2 class="mt-3 fw-bold" id="dashCountSchools">0</h2>
+                            <p class="text-muted mb-0">Escuelas Registradas</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="ef-card h-100 text-center py-4">
+                            <i class="bi bi-people display-4" style="color: var(--primary-light);"></i>
+                            <h2 class="mt-3 fw-bold" id="dashCountGroups">0</h2>
+                            <p class="text-muted mb-0">Grupos Administrativos</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="ef-card h-100 text-center py-4">
+                            <i class="bi bi-person-lines-fill display-4" style="color: var(--primary-light);"></i>
+                            <h2 class="mt-3 fw-bold" id="dashCountStudents">0</h2>
+                            <p class="text-muted mb-0">Alumnos Totales</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="fw-bold mb-3" style="color:var(--primary)">Progreso de Evaluaciones</h5>
+                <div class="row" id="dashProgressCards">
+                    <!-- Trimestre tarjetas renderizadas dinámicamente -->
+                </div>
+            </section>
+
+            <!-- ── CONFIGURATION SECTION ── -->
+            <section class="content-section" id="secConfiguracion">
+                <h4 class="fw-bold mb-3" style="color:#333;">
+                    <i class="bi bi-gear me-2" style="color:var(--primary)"></i>Configuración
+                </h4>
+
+                <div class="config-tab-bar">
+                    <button class="config-tab-btn active" data-tab="perfil" onclick="navigateConfig('perfil')">
+                        <i class="bi bi-person-badge"></i> Perfil Docente
+                    </button>
+                    <button class="config-tab-btn" data-tab="escuelas" onclick="navigateConfig('escuelas')">
+                        <i class="bi bi-building"></i> Mis Escuelas
+                    </button>
+                    <button class="config-tab-btn" data-tab="rasgos" onclick="navigateConfig('rasgos')">
+                        <i class="bi bi-star"></i> Rasgos de Eval
+                    </button>
+                </div>
+
+                <!-- 1.1 Perfil Docente -->
+                <div id="confPerfil" class="config-sub-section">
+                    <div class="ef-card">
+                        <h6 class="fw-bold mb-3">Perfil del Docente</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nombre para Reportes</label>
+                            <input type="text" class="form-control" id="customTeacherName"
+                                placeholder="Ej: Prof. Juan Pérez">
+                            <div class="form-text">Este nombre aparecerá en el encabezado de todos tus reportes
+                                electrónicos y PDF.</div>
+                        </div>
+                        <button class="btn-primary-ef" onclick="saveProfile()">
+                            <i class="bi bi-save me-1"></i> Guardar Perfil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1.2 Escuelas -->
+                <div id="confEscuelas" class="config-sub-section" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Gestión de Escuelas</h5>
+                        <button class="btn-primary-ef btn-sm" onclick="showSchoolForm()">
+                            <i class="bi bi-plus-lg"></i> Nueva Escuela
+                        </button>
+                    </div>
+                    <div id="schoolsList"></div>
+                </div>
+
+                <!-- 1.3 Rasgos -->
+                <div id="confRasgos" class="config-sub-section" style="display:none;">
+                    <div class="ef-card mb-3">
+                        <h6 class="fw-bold"><i class="bi bi-star-fill text-warning me-2"></i>Configuración de Rasgos
+                        </h6>
+                        <p class="text-muted small">Selecciona una escuela, grado y trimestre para personalizar los
+                            criterios de evaluación.</p>
+
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Escuela</label>
+                                <select id="rasgosSchool" class="form-select"
+                                    onchange="onRasgosSchoolChange()"></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Grado</label>
+                                <select id="rasgosGrade" class="form-select" onchange="onRasgosFilterChange()"></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Trimestre</label>
+                                <select id="rasgosTrimester" class="form-select" onchange="onRasgosFilterChange()">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1er Trimestre</option>
+                                    <option value="2">2do Trimestre</option>
+                                    <option value="3">3er Trimestre</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="rasgosContent"></div>
+                </div>
+            </section>
+
+            <!-- ── ESCUELAS: Form ── -->
+            <section class="content-section" id="secSchoolForm">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('escuelas')">Mis Escuelas</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="schoolFormTitle">Nueva Escuela</span>
+                </div>
+                <div class="ef-card">
+                    <form id="formSchool" onsubmit="saveSchool(event)">
+                        <input type="hidden" id="schoolId">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre de la Escuela</label>
+                            <input type="text" class="form-control" id="schoolName" required
+                                placeholder="Ej: Esc. Prim. Benito Juárez">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Nivel Educativo</label>
+                                <select class="form-select" id="schoolLevel" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Preescolar">Preescolar</option>
+                                    <option value="Primaria">Primaria</option>
+                                    <option value="Secundaria">Secundaria</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Turno</label>
+                                <select class="form-select" id="schoolShift" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Matutino">Matutino</option>
+                                    <option value="Vespertino">Vespertino</option>
+                                    <option value="Tiempo completo">Tiempo completo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Ciclo Escolar</label>
+                                <input type="text" class="form-control" id="schoolYear" required placeholder="2025-2026"
+                                    value="2025-2026">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="submit" class="btn-primary-ef"><i class="bi bi-check-lg"></i> Guardar</button>
+                            <button type="button" class="btn-outline-ef"
+                                onclick="navigateTo('escuelas')">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ── GROUPS VIEW ── -->
+            <section class="content-section" id="secGroups">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('escuelas')">Mis Escuelas</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="groupsSchoolName">Escuela</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="fw-bold mb-0" style="color:#333;">
+                        <i class="bi bi-people me-2" style="color:var(--primary)"></i>Grupos
+                    </h4>
+                    <button class="btn-primary-ef" onclick="showGroupForm()">
+                        <i class="bi bi-plus-lg"></i> Nuevo Grupo
+                    </button>
+                </div>
+                <div id="groupsList"></div>
+            </section>
+
+            <!-- ── GROUP FORM (modal-style inline) ── -->
+            <section class="content-section" id="secGroupForm">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('escuelas')">Mis Escuelas</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <button id="groupFormBackToGroups" onclick="showGroups(currentSchoolId)">Grupos</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="groupFormTitle">Nuevo Grupo</span>
+                </div>
+                <div class="ef-card">
+                    <form id="formGroup" onsubmit="saveGroup(event)">
+                        <input type="hidden" id="groupId">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Grado</label>
+                                <select class="form-select" id="groupGrade" required></select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Letra (Grupo)</label>
+                                <select class="form-select" id="groupLetter" required>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                    <option value="E">E</option>
+                                    <option value="F">F</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn-primary-ef"><i class="bi bi-check-lg"></i> Guardar</button>
+                            <button type="button" class="btn-outline-ef"
+                                onclick="showGroups(currentSchoolId)">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ── STUDENTS VIEW ── -->
+            <section class="content-section" id="secStudents">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('escuelas')">Mis Escuelas</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <button id="studentsBackToGroups" onclick="showGroups(currentSchoolId)">Grupos</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="studentsGroupName">Grupo</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="fw-bold mb-0" style="color:#333;">
+                        <i class="bi bi-person-lines-fill me-2" style="color:var(--primary)"></i>Alumnos
+                    </h4>
+                    <button class="btn-primary-ef" onclick="showStudentForm()">
+                        <i class="bi bi-plus-lg"></i> Nuevo Alumno
+                    </button>
+                </div>
+                <div id="studentsList"></div>
+            </section>
+
+            <!-- ── STUDENT FORM ── -->
+            <section class="content-section" id="secStudentForm">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('escuelas')">Mis Escuelas</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <button onclick="showGroups(currentSchoolId)">Grupos</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <button id="studentFormBackToStudents" onclick="showStudents(currentGroupId)">Alumnos</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="studentFormTitle">Nuevo Alumno</span>
+                </div>
+                <div class="ef-card">
+                    <form id="formStudent" onsubmit="saveStudent(event)">
+                        <input type="hidden" id="studentId">
+                        <div class="row">
+                            <div class="col-4 col-md-3 mb-3">
+                                <label class="form-label fw-semibold">N° Lista</label>
+                                <input type="number" class="form-control" id="studentNumber" required min="1" max="60">
+                            </div>
+                            <div class="col-8 col-md-9 mb-3">
+                                <label class="form-label fw-semibold">Nombre Completo</label>
+                                <input type="text" class="form-control" id="studentName" required
+                                    placeholder="Apellido Paterno Materno Nombre(s)">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn-primary-ef"><i class="bi bi-check-lg"></i> Guardar</button>
+                            <button type="button" class="btn-outline-ef"
+                                onclick="showStudents(currentGroupId)">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ── EVALUACIÓN: Workspace ── -->
+            <section class="content-section" id="secEvaluacion">
+                <h4 class="fw-bold mb-3" style="color:#333;">
+                    <i class="bi bi-clipboard-check me-2" style="color:var(--primary)"></i>Evaluación
+                </h4>
+                <div class="ef-card">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Escuela</label>
+                            <select class="form-select" id="evalSchool" onchange="onEvalSchoolChange()"></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Grupo</label>
+                            <select class="form-select" id="evalGroup" onchange="onEvalGroupChange()"></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Trimestre</label>
+                            <select class="form-select" id="evalTrimester" onchange="onEvalTrimesterChange()">
+                                <option value="1">1° Trimestre</option>
+                                <option value="2">2° Trimestre</option>
+                                <option value="3">3° Trimestre</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Content Container -->
+                <div id="evalWorkspaceWrap">
+                    <div id="evalEmptyState" class="empty-state">
+                        <i class="bi bi-clipboard-check"></i>
+                        <h5>Selecciona escuela, grupo y trimestre</h5>
+                        <p>Luego podrás evaluar a todos los alumnos por rasgo.</p>
+                    </div>
+                    <div id="evalWorkspace" style="display:none;">
+                        <div class="report-tab-bar" id="evalTabBar"></div>
+                        <div id="evalTabContent"></div>
+
+                        <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+                            <button class="btn-primary-ef" onclick="saveAllEvaluations()" id="btnSaveEvalGroup">
+                                <i class="bi bi-cloud-arrow-up-fill"></i> Guardar Evaluaciones
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── STUDENT COMMENT MODAL ── -->
+            <section class="content-section" id="secEvalCommentModal">
+                <div class="ef-breadcrumb">
+                    <button onclick="showSection('secEvaluacion')">Evaluación</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="commentModalStudentName">Comentario</span>
+                </div>
+                <div class="ef-card mt-3">
+                    <h5 class="fw-bold mb-3">Comentario de mejora</h5>
+                    <div class="comment-predefined" id="evalCommentChips"></div>
+                    <textarea class="form-control" id="evalStudentComment" rows="4"
+                        placeholder="Escribe un comentario..."></textarea>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <button class="btn-tpl" onclick="showCommentConfig()"><i class="bi bi-gear"></i> Editar
+                            predefinidos</button>
+                        <div class="d-flex gap-2">
+                            <button class="btn-primary-ef" onclick="saveStudentComment()"><i class="bi bi-check-lg"></i>
+                                Listo</button>
+                            <button class="btn-outline-ef" onclick="showSection('secEvaluacion')">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── COMMENT CONFIG ── -->
+            <section class="content-section" id="secCommentConfig">
+                <div class="ef-breadcrumb">
+                    <button onclick="showSection('secEvaluacion')">Evaluación</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current">Comentarios Predefinidos</span>
+                </div>
+                <div class="ef-card">
+                    <label class="form-label fw-semibold">Comentarios predefinidos para este trimestre y grado</label>
+                    <p class="text-muted" style="font-size:.8rem;">Un comentario por línea. Se guardan automáticamente.
+                    </p>
+                    <textarea class="form-control" id="commentConfigText" rows="8"
+                        placeholder="Ej: Necesita mejorar su participación en actividades grupales."></textarea>
+                    <div class="d-flex gap-2 mt-3">
+                        <button class="btn-primary-ef" onclick="saveCommentConfig()"><i class="bi bi-check-lg"></i>
+                            Guardar</button>
+                        <button class="btn-outline-ef" onclick="backToEvalForm()">Cancelar</button>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ── RASGOS: Editor ── -->
+            <section class="content-section" id="secRasgosEditor">
+                <div class="ef-breadcrumb">
+                    <button onclick="navigateTo('rasgos')">Rasgos</button>
+                    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                    <span class="current" id="rasgosEditorTitle">Configurar Rasgos</span>
+                </div>
+
+                <!-- Percentage bar -->
+                <div class="ef-card">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="fw-semibold" style="color:#555">Suma de porcentajes</small>
+                        <small class="fw-bold" id="pctLabel" style="color:var(--primary)">0%</small>
+                    </div>
+                    <div class="pct-bar-wrap">
+                        <div class="pct-bar-fill ok" id="pctBar" style="width:0%">0%</div>
+                    </div>
+                    <small class="text-muted" id="pctHint">Los porcentajes deben sumar exactamente 100%.</small>
+                </div>
+
+                <!-- Performance Levels -->
+                <div class="ef-card">
+                    <label class="form-label fw-semibold mb-2">Niveles de Desempeño</label>
+                    <div class="nivel-row">
+                        <input type="text" class="form-control form-control-sm nivel-chip n1" id="nivelName1"
+                            value="Inicio" style="width:auto;">
+                        <input type="text" class="form-control form-control-sm nivel-chip n2" id="nivelName2"
+                            value="En proceso" style="width:auto;">
+                        <input type="text" class="form-control form-control-sm nivel-chip n3" id="nivelName3"
+                            value="Logrado" style="width:auto;">
+                        <input type="text" class="form-control form-control-sm nivel-chip n4" id="nivelName4"
+                            value="Destacado" style="width:auto;">
+                    </div>
+                </div>
+
+                <!-- Template buttons -->
+                <div class="template-btns">
+                    <button class="btn-tpl" onclick="saveTemplate()"><i class="bi bi-bookmark-plus"></i> Guardar como
+                        plantilla</button>
+                    <button class="btn-tpl" onclick="showLoadTemplate()"><i class="bi bi-bookmark-check"></i> Cargar
+                        plantilla</button>
+                </div>
+
+                <!-- Add rasgo form -->
+                <div class="rasgo-input-row">
+                    <div class="flex-grow-1">
+                        <label class="form-label fw-semibold">Nombre del Rasgo</label>
+                        <input type="text" class="form-control" id="newRasgoName"
+                            placeholder="Ej: Participación activa">
+                    </div>
+                    <div style="width:100px">
+                        <label class="form-label fw-semibold">%</label>
+                        <input type="number" class="form-control" id="newRasgoPct" min="1" max="100" placeholder="%">
+                    </div>
+                    <button class="btn-primary-ef" onclick="addRasgo()" style="margin-bottom:0;height:38px;"><i
+                            class="bi bi-plus-lg"></i></button>
+                </div>
+
+                <!-- Rasgos list -->
+                <div id="rasgosList"></div>
+
+                <!-- Save button -->
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn-primary-ef" id="btnSaveRasgos" onclick="saveRasgos()" disabled>
+                        <i class="bi bi-check-lg"></i> Guardar Rasgos
+                    </button>
+                    <button class="btn-outline-ef" onclick="navigateTo('rasgos')">Cancelar</button>
+                </div>
+            </section>
+
+            <!-- ── REPORTES: Selector ── -->
+            <section class="content-section" id="secReportes">
+                <h4 class="fw-bold mb-3" style="color:#333;">
+                    <i class="bi bi-bar-chart-line me-2" style="color:var(--primary)"></i>Reportes
+                </h4>
+                <div class="ef-card">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Escuela</label>
+                            <select class="form-select" id="reportSchool" onchange="onReportSchoolChange()"></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Grupo</label>
+                            <select class="form-select" id="reportGroup" onchange="onReportFilterChange()"></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Trimestre</label>
+                            <select class="form-select" id="reportTrimester" onchange="onReportFilterChange()">
+                                <option value="1">1° Trimestre</option>
+                                <option value="2">2° Trimestre</option>
+                                <option value="3">3° Trimestre</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab bar -->
+                <div class="report-tab-bar" id="reportTabBar" style="display:none">
+                    <div class="report-tab active" onclick="switchReportTab('grupo', this)">Reporte Grupal</div>
+                    <div class="report-tab" onclick="switchReportTab('boleta', this)">Boleta Individual</div>
+                </div>
+
+                <!-- Actions -->
+                <div class="report-actions" id="reportActions" style="display:none">
+                    <button class="btn-primary-ef" onclick="exportReportPDF()"><i class="bi bi-file-earmark-pdf"></i>
+                        Exportar PDF</button>
+                    <button class="btn-tpl" onclick="saveReportToDrive()"><i class="bi bi-cloud-upload"></i> Guardar en
+                        Drive</button>
+                    <button class="btn-tpl" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
+                </div>
+
+                <!-- Report content -->
+                <div id="reportPrintArea"></div>
+            </section>
+
+            <!-- ── ACERCA DE ── -->
+            <section class="content-section" id="secAcerca">
+                <h4 class="fw-bold mb-3" style="color:#333;">
+                    <i class="bi bi-info-circle me-2" style="color:var(--primary)"></i>Acerca de
+                </h4>
+                <div class="about-card">
+                    <img src="icons/profef%201.png" alt="PROFEf Logo" class="about-logo"
+                        onerror="this.style.display='none'">
+                    <h2 class="about-title">Evaluando Educación Física</h2>
+                    <div class="about-version">Versión 2.0 (PWA)</div>
+                    <p class="about-desc">
+                        Una aplicación oficial del <strong>Programa de Fortalecimiento en Educación Física
+                            (PROFEf)</strong>. <br><br>
+                        Diseñada específicamente para facilitar la labor docente, permitiendo la gestión eficiente de
+                        grupos, herramientas de evaluación personalizables, cálculo automático de promedios según
+                        lineamientos oficiales y generación de reportes listos para imprimir.
+                    </p>
+                    <div class="d-flex flex-column gap-2 align-items-center mt-4">
+                        <small class="text-muted"><i class="bi bi-cloud-check me-1"></i> Se sincroniza de forma segura
+                            con tu Google Drive personal.</small>
+                        <small class="text-muted"><i class="bi bi-wifi-off me-1"></i> Soporte offline: Funciona sin
+                            conexión (requiere conexión inicial).</small>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         MODALS & TOASTS
+         ═══════════════════════════════════════════ -->
+    <!-- Save Toast -->
+    <div id="saveToast" class="save-toast" style="display:none;">
+        <i class="bi bi-cloud-check-fill"></i> <span id="saveToastText">Guardado en Drive</span>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:16px; border:none;">
+                <div class="modal-body text-center p-4">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size:2.5rem;"></i>
+                    <h5 class="mt-3 fw-bold">¿Eliminar?</h5>
+                    <p class="text-muted mb-3" id="deleteMessage">Esta acción no se puede deshacer.</p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal"
+                            style="border-radius:10px;">Cancelar</button>
+                        <button class="btn btn-danger" id="btnConfirmDelete"
+                            style="border-radius:10px;">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        /* ═══════════════════════════════════════════
+           CONFIGURATION
+           ═══════════════════════════════════════════ */
+        const CLIENT_ID = '193518735837-8dphda8aurrve2muaepo8k3ec3b0i4h8.apps.googleusercontent.com';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        const DRIVE_FOLDER_NAME = 'EvaluandoEF_Data';
+
+        /* ═══════════════════════════════════════════
+           STATE
+           ═══════════════════════════════════════════ */
+        let accessToken = '';
+        let driveFolderId = '';
+        let driveFileIds = {};
+        let currentSchoolId = '';
+        let currentGroupId = '';
+        let deleteCallback = null;
+
+        /** @type {{ escuelas: Array<{id:string, nombre:string, nivel:string, turno:string, ciclo:string, grupos:Array<{id:string, grado:string, letra:string}>}>, fechasCierre: {t1:string, t2:string, t3:string} }} */
+        let appData = { escuelas: [], fechasCierre: { t1: '', t2: '', t3: '' } };
+
+        /** @type {Record<string, {grupoId:string, alumnos:Array<{id:string, numero:number, nombre:string}>}>} */
+        let alumnosData = {};
+
+        /** @type {Record<string, {nivel:string, grado:string, trimestre:string, niveles:string[], rasgos:Array<{id:string, nombre:string, porcentaje:number}>}>} */
+        let rasgosData = {};
+
+        /** @type {Array<{id:string, nombre:string, niveles:string[], rasgos:Array<{nombre:string, porcentaje:number}>}>} */
+        let rasgosTemplates = [];
+
+        let currentRasgosKey = '';
+        let currentRasgosConfig = null;
+
+        /** @type {Record<string, object>} evaluaciones keyed by alumnoId_trimestre */
+        let evaluacionesData = {};
+
+        /** @type {Record<string, string[]>} predefined comments keyed by nivel_grado_trimestre */
+        let commentTemplatesData = {};
+
+        let currentEvalSchoolId = '';
+        let currentEvalGroupId = '';
+        let currentEvalTrimestre = '1';
+        let currentEvalTabId = '';
+        let evalMinGrade = 5;
+        let evalMaxGrade = 10;
+        let evalIsPreescolar = false;
+        let currentCommentAlumnoId = '';
+
+        const GRADE_MAP = {
+            'Preescolar': ['1°', '2°', '3°'],
+            'Primaria': ['1°', '2°', '3°', '4°', '5°', '6°'],
+            'Secundaria': ['1°', '2°', '3°']
+        };
+
+        /* ═══════════════════════════════════════════
+           SERVICE WORKER
+           ═══════════════════════════════════════════ */
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => { });
+        }
+
+        /* ═══════════════════════════════════════════
+           GOOGLE AUTH (OAuth 2.0 Implicit Flow)
+           ═══════════════════════════════════════════ */
+        function handleGoogleLogin() {
+            if (CLIENT_ID === 'YOUR_CLIENT_ID' || CLIENT_ID.includes('YOUR')) {
+                alert('⚠️ Configura tu CLIENT_ID de Google OAuth en el código.');
+                return;
+            }
+            // Forzamos la selección de cuenta con prompt=select_account
+            const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
+                '?client_id=' + encodeURIComponent(CLIENT_ID) +
+                '&redirect_uri=' + encodeURIComponent(window.location.origin + window.location.pathname) +
+                '&response_type=token' +
+                '&scope=' + encodeURIComponent(SCOPES + ' https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email') +
+                '&prompt=select_account';
+            window.location.href = authUrl;
+        }
+
+        function logout() {
+            localStorage.clear();
+            accessToken = '';
+            location.href = window.location.origin + window.location.pathname;
+        }
+
+        function parseHashToken() {
+            const hash = window.location.hash.substring(1);
+            if (!hash) return null;
+            const params = new URLSearchParams(hash);
+            return params.get('access_token');
+        }
+
+        async function initAuth() {
+            // Check internet connection specifically for login
+            if (!navigator.onLine) {
+                document.querySelector('.login-card').innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="bi bi-wifi-off text-danger mb-3" style="font-size:3rem"></i>
+                        <h4 class="fw-bold">Sin conexión a Internet</h4>
+                        <p class="text-muted">Necesitas conexión para iniciar sesión la primera vez.</p>
+                        <button class="btn btn-outline-secondary mt-2" onclick="location.reload()">Reintentar</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const token = parseHashToken();
+            if (token) {
+                accessToken = token;
+                window.history.replaceState(null, '', window.location.pathname);
+                await onLoginSuccess();
+            }
+        }
+
+        async function onLoginSuccess() {
+            try {
+                const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                if (!userRes.ok) throw new Error('Token inválido o expirado');
+                const user = await userRes.json();
+
+                // Primero intentamos usar el nombre personalizado de appData si existe
+                const displayName = appData.nombreDocente || user.name || user.email;
+                document.getElementById('userName').textContent = displayName;
+                document.getElementById('userPhoto').src = user.picture || '';
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appShell').style.display = 'block';
+                await initDrive();
+
+                // Actualizar de nuevo tras initDrive por si appData se cargó después
+                if (appData.nombreDocente) {
+                    document.getElementById('userName').textContent = appData.nombreDocente;
+                }
+
+                navigateTo('dashboard');
+            } catch (err) {
+                console.error("Login Error:", err);
+                alert("Hubo un problema al leer tu perfil de Google. Por favor, reintenta iniciar sesión.");
+                window.location.hash = '';
+            }
+        }
+
+        /* ── PROFILE MANAGEMENT ── */
+        function renderProfile() {
+            const input = document.getElementById('customTeacherName');
+            if (input) {
+                input.value = appData.nombreDocente || '';
+            }
+        }
+
+        async function saveProfile() {
+            const newName = document.getElementById('customTeacherName').value.trim();
+            if (!newName) {
+                alert("Por favor ingresa un nombre válido.");
+                return;
+            }
+            appData.nombreDocente = newName;
+            document.getElementById('userName').textContent = newName;
+
+            try {
+                await saveSchoolsToDrive();
+                showSaveToast('Perfil actualizado y sincronizado');
+            } catch (err) {
+                console.error("Save profile error:", err);
+                alert("Error al guardar el perfil en Drive.");
+            }
+        }
+
+        function handleSignOut() {
+            if (confirm("¿Estás seguro que deseas cerrar sesión? Necesitarás internet para volver a entrar.")) {
+                logout();
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           GOOGLE DRIVE API (DATA PERSISTENCE)
+           ═══════════════════════════════════════════ */
+
+        async function driveRequest(url, options = {}) {
+            try {
+                const res = await fetch(url, {
+                    ...options,
+                    headers: { 'Authorization': 'Bearer ' + accessToken, ...(options.headers || {}) }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        handleSignOut(); // Token expired
+                    }
+                    throw new Error('Drive API error: ' + res.status);
+                }
+                return res.status === 204 ? null : res.json();
+            } catch (err) {
+                console.error("Fetch failed:", err);
+                throw err;
+            }
+        }
+
+        async function findOrCreateFolder() {
+            const q = `name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+            const res = await driveRequest('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)');
+            if (res.files && res.files.length > 0) {
+                return res.files[0].id;
+            }
+            const folder = await driveRequest('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+            });
+            return folder.id;
+        }
+
+        async function findOrCreateSubfolder(parentId, folderName) {
+            const q = `name='${folderName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+            const res = await driveRequest('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
+            if (res.files && res.files.length > 0) return res.files[0].id;
+            const folder = await driveRequest('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
+            });
+            return folder.id;
+        }
+
+        async function readJsonFile(parentId, fileName) {
+            const q = `name='${fileName}' and '${parentId}' in parents and trashed=false`;
+            const res = await driveRequest('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
+            if (!res.files || res.files.length === 0) return null;
+            driveFileIds[fileName] = res.files[0].id;
+            const content = await fetch('https://www.googleapis.com/drive/v3/files/' + res.files[0].id + '?alt=media', {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            return content.json();
+        }
+
+        async function writeJsonFile(parentId, fileName, data) {
+            updateSyncStatus('syncing');
+            const body = JSON.stringify(data, null, 2);
+            const metadata = { name: fileName, mimeType: 'application/json' };
+            const existingId = driveFileIds[fileName];
+            if (existingId) {
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
+                form.append('file', new Blob([body], { type: 'application/json' }));
+                await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart', {
+                    method: 'PATCH',
+                    headers: { 'Authorization': 'Bearer ' + accessToken },
+                    body: form
+                });
+            } else {
+                metadata.parents = [parentId];
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', new Blob([body], { type: 'application/json' }));
+                const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + accessToken },
+                    body: form
+                });
+                const created = await res.json();
+                driveFileIds[fileName] = created.id;
+            }
+            updateSyncStatus('saved');
+            showSaveToast('Guardado en Drive');
+        }
+
+        async function deleteJsonFile(fileName) {
+            const fileId = driveFileIds[fileName];
+            if (!fileId) return;
+            await fetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            delete driveFileIds[fileName];
+        }
+
+        let alumnosFolderId = '';
+        let rasgosFolderId = '';
+        let evaluacionesFolderId = '';
+        let reportesFolderId = '';
+
+        async function initDrive() {
+            try {
+                updateSyncStatus('syncing');
+                driveFolderId = await findOrCreateFolder();
+                alumnosFolderId = await findOrCreateSubfolder(driveFolderId, 'alumnos');
+                rasgosFolderId = await findOrCreateSubfolder(driveFolderId, 'rasgos');
+                evaluacionesFolderId = await findOrCreateSubfolder(driveFolderId, 'evaluaciones');
+                reportesFolderId = await findOrCreateSubfolder(driveFolderId, 'reportes');
+
+                const schoolData = await readJsonFile(driveFolderId, 'escuelas.json');
+                if (schoolData) {
+                    appData = schoolData;
+                }
+
+                // Load students
+                for (const esc of appData.escuelas) {
+                    for (const grp of esc.grupos) {
+                        const data = await readJsonFile(alumnosFolderId, grp.id + '.json');
+                        if (data) alumnosData[grp.id] = data;
+                    }
+                }
+
+                // Load templates
+                const tplData = await readJsonFile(driveFolderId, 'plantillas_rasgos.json');
+                if (tplData) rasgosTemplates = tplData.plantillas || [];
+
+                // Load predefined comments
+                const cmtData = await readJsonFile(driveFolderId, 'comentarios_predefinidos.json');
+                if (cmtData) commentTemplatesData = cmtData;
+
+                updateSyncStatus('saved');
+            } catch (err) {
+                console.error('Drive init error:', err);
+                const msg = err.message && err.message.includes('Drive API error') ? err.message : 'Error de sincronización';
+                updateSyncStatus('offline', msg);
+                // Intentar recuperar el mensaje del error para depuración si es posible
+                if (err.message) console.warn("Detalle del error:", err.message);
+            }
+        }
+
+        async function forceSync() {
+            if (!navigator.onLine) {
+                alert("Necesitas conexión a internet para sincronizar manualmente.");
+                return;
+            }
+            if (!driveFolderId) {
+                await initDrive();
+            } else {
+                updateSyncStatus('syncing');
+                await saveSchoolsToDrive();
+                updateSyncStatus('saved');
+                showSaveToast('Sincronización manual completada');
+            }
+        }
+
+        // Expose a function to update sync UI externally
+        function updateSyncStatus(status, textOverride = '') {
+            const badge = document.getElementById('syncBadge');
+            const icon = badge.querySelector('i');
+            const text = document.getElementById('syncText');
+            const btn = document.getElementById('syncBtnElem');
+
+            badge.className = 'sync-badge ' + status;
+
+            if (status === 'syncing') {
+                icon.className = 'bi bi-arrow-repeat spin';
+                text.textContent = textOverride || 'Sincronizando…';
+                if (btn) btn.style.display = 'none';
+            } else if (status === 'saved') {
+                icon.className = 'bi bi-cloud-check-fill';
+                text.textContent = textOverride || 'Guardado';
+                if (btn) btn.style.display = 'flex';
+                setTimeout(() => {
+                    if (badge.classList.contains('saved')) {
+                        badge.className = 'sync-badge online';
+                        icon.className = 'bi bi-wifi';
+                        text.textContent = 'En línea';
+                    }
+                }, 3000);
+            } else if (status === 'offline') {
+                icon.className = 'bi bi-wifi-off';
+                text.textContent = textOverride || 'Sin conexión';
+                if (btn) btn.style.display = 'flex';
+            } else { // online
+                icon.className = 'bi bi-wifi';
+                text.textContent = textOverride || 'En línea';
+                if (btn) btn.style.display = 'flex';
+            }
+        }
+
+        async function saveSchoolsToDrive() {
+            try {
+                await writeJsonFile(driveFolderId, 'escuelas.json', appData);
+            } catch (err) {
+                console.error('Save error:', err);
+                updateSyncStatus('offline');
+            }
+        }
+
+        async function saveStudentsToDrive(groupId) {
+            try {
+                const data = alumnosData[groupId] || { grupoId: groupId, alumnos: [] };
+                await writeJsonFile(alumnosFolderId, groupId + '.json', data);
+            } catch (err) {
+                console.error('Save students error:', err);
+                updateSyncStatus('offline');
+            }
+        }
+
+        function navigateTo(section, event) {
+            if (event) event.preventDefault();
+            const allSections = document.querySelectorAll('.content-section');
+            allSections.forEach(s => s.classList.remove('active'));
+
+            const mainSections = ['dashboard', 'evaluacion', 'reportes', 'configuracion', 'acerca'];
+            if (mainSections.includes(section)) {
+                document.querySelectorAll('.sidebar-link, .bottom-link').forEach(l => {
+                    l.classList.toggle('active', l.dataset.section === section);
+                });
+            }
+
+            const sectionMap = {
+                'dashboard': 'secDashboard',
+                'evaluacion': 'secEvaluacion',
+                'reportes': 'secReportes',
+                'configuracion': 'secConfiguracion',
+                'acerca': 'secAcerca',
+                // Keep these for internal navigation if needed (like breadcrumbs)
+                'escuelas': 'secEscuelas',
+                'rasgos': 'secRasgos',
+                'pAlumnos': 'secStudents',
+                'pAluForm': 'secStudentForm'
+            };
+
+            if (section === 'escuelas') {
+                navigateTo('configuracion');
+                navigateConfig('escuelas');
+                return;
+            }
+            if (section === 'rasgos') {
+                navigateTo('configuracion');
+                navigateConfig('rasgos');
+                return;
+            }
+
+            const targetId = sectionMap[section];
+            if (targetId) {
+                const el = document.getElementById(targetId);
+                if (el) {
+                    el.classList.add('active');
+                    if (section === 'dashboard') renderDashboard();
+                    if (section === 'evaluacion') initEvalSelectors();
+                    if (section === 'reportes') initReportSelectors();
+                    if (section === 'configuracion') navigateConfig('perfil');
+                }
+            }
+        }
+
+        function navigateConfig(subTab) {
+            // Hide all sub-sections
+            const subSections = ['confPerfil', 'confEscuelas', 'confRasgos'];
+            subSections.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            // Update tab buttons
+            document.querySelectorAll('.config-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === subTab);
+            });
+
+            // Show target sub-section
+            const targetId = 'conf' + subTab.charAt(0).toUpperCase() + subTab.slice(1);
+            const target = document.getElementById(targetId);
+            if (target) {
+                target.style.display = 'block';
+                if (subTab === 'escuelas') renderSchools();
+                if (subTab === 'rasgos') initRasgosSelectors();
+                if (subTab === 'perfil') renderProfile();
+            }
+        }
+
+        /* ── DASHBOARD LOGIC ── */
+        function renderDashboard() {
+            let totalSchools = appData.escuelas.length;
+            let totalGroups = 0;
+            let totalStudents = 0;
+
+            // Global counts
+            appData.escuelas.forEach(s => {
+                totalGroups += (s.grupos || []).length;
+                (s.grupos || []).forEach(g => {
+                    const data = alumnosData[g.id];
+                    if (data && data.alumnos) totalStudents += data.alumnos.length;
+                });
+            });
+
+            document.getElementById('dashCountSchools').textContent = totalSchools;
+            document.getElementById('dashCountGroups').textContent = totalGroups;
+            document.getElementById('dashCountStudents').textContent = totalStudents;
+
+            const triProgress = [
+                { id: '1', label: '1er Trimestre' },
+                { id: '2', label: '2do Trimestre' },
+                { id: '3', label: '3er Trimestre' }
+            ];
+
+            let html = '';
+            triProgress.forEach(tp => {
+                let evaluatedCount = 0;
+                let breakdownHtml = '';
+
+                // Hierarchical calculation
+                appData.escuelas.forEach(esc => {
+                    let escTotal = 0;
+                    let escEvaluated = 0;
+                    let grpHtml = '';
+
+                    (esc.grupos || []).forEach(grp => {
+                        const data = alumnosData[grp.id];
+                        if (data && data.alumnos) {
+                            escTotal += data.alumnos.length;
+                            let grpEvaluated = 0;
+                            data.alumnos.forEach(alu => {
+                                const evalKey = alu.id + '_' + tp.id;
+                                const ev = evaluacionesData[evalKey];
+                                const hasData = ev && (Object.keys(ev.selecciones || {}).length > 0 || (ev.comentario && ev.comentario !== '') || ev.calificacionManual !== undefined);
+                                if (hasData) {
+                                    grpEvaluated++;
+                                    escEvaluated++;
+                                    evaluatedCount++;
+                                }
+                            });
+                            grpHtml += `<div class="ps-3 py-1 border-start ms-2 mb-1" style="border-width: 2px !important; border-color: #eee !important;">
+                                <span class="small text-muted" style="font-size: 0.7rem;">Grupo ${grp.grado}${grp.letra}:</span> 
+                                <span class="small fw-bold text-dark" style="font-size: 0.75rem;">${grpEvaluated} de ${data.alumnos.length}</span>
+                            </div>`;
+                        }
+                    });
+
+                    const escPercent = escTotal > 0 ? Math.round((escEvaluated / escTotal) * 100) : 0;
+                    if (escTotal > 0) { // Only show schools that have students
+                        breakdownHtml += `
+                        <div class="mt-2 p-2 bg-white rounded border" style="background-color: #fcfcfc !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-bold text-dark text-truncate" style="max-width: 140px; font-size: 0.75rem;">${escapeHtml(esc.nombre)}</span>
+                                <span class="badge bg-light text-dark border small" style="font-size: 0.65rem;">${escPercent}%</span>
+                            </div>
+                            <div class="progress mb-2" style="height: 4px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: ${escPercent}%"></div>
+                            </div>
+                            ${grpHtml}
+                        </div>`;
+                    }
+                });
+
+                const percent = totalStudents > 0 ? Math.round((evaluatedCount / totalStudents) * 100) : 0;
+                const deadlineValue = appData.fechasCierre ? appData.fechasCierre['t' + tp.id] || '' : '';
+
+                html += `
+                <div class="col-md-4 mb-3">
+                    <div class="ef-card h-100 shadow-sm border-0 d-flex flex-column" style="min-height: 380px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-dark">${tp.label}</h6>
+                            <span class="badge ${percent === 100 ? 'bg-success' : 'bg-primary'} font-monospace">${percent}%</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 10px; border-radius: 10px; background: #eee;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                role="progressbar" style="width: ${percent}%; background-color: var(--primary-light); border-radius: 10px;"></div>
+                        </div>
+                        <p class="small text-muted mb-2"><i class="bi bi-person-check me-1"></i>${evaluatedCount} de ${totalStudents} alumnos evaluados</p>
+                        
+                        <button class="btn btn-sm btn-light w-100 py-1 mb-2 border" type="button" 
+                                onclick="toggleDashDetail('detail_${tp.id}')" style="font-size: 0.7rem; color: #555;">
+                            <i class="bi bi-list-nested me-1"></i>Ver desglose por escuela
+                        </button>
+                        
+                        <div id="detail_${tp.id}" class="d-none mb-3 px-1" style="max-height: 250px; overflow-y: auto;">
+                            ${breakdownHtml || '<div class="text-center small text-muted py-2">Sin datos de alumnos</div>'}
+                        </div>
+
+                        <div class="pt-2 border-top mt-auto">
+                            <label class="form-label small fw-bold mb-1 text-secondary" style="font-size: 0.7rem;">Entrega Programada:</label>
+                            <input type="date" class="form-control form-control-sm border-0 bg-light" value="${deadlineValue}" 
+                                onchange="saveDeadline('${tp.id}', this.value)" style="border-radius:6px; font-size: 0.75rem;">
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('dashProgressCards').innerHTML = html || '<div class="col-12 text-center py-4 text-muted">Aun no hay datos registrados</div>';
+        }
+
+        function toggleDashDetail(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('d-none')) {
+                el.classList.remove('d-none');
+            } else {
+                el.classList.add('d-none');
+            }
+        }
+
+        async function saveDeadline(triId, value) {
+            if (!appData.fechasCierre) appData.fechasCierre = { t1: '', t2: '', t3: '' };
+            appData.fechasCierre['t' + triId] = value;
+            await saveSchoolsToDrive();
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        /* ═══════════════════════════════════════════
+           UTILS
+           ═══════════════════════════════════════════ */
+        function uid() { return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7); }
+
+        function showSaveToast(text, duration = 2500) {
+            const toast = document.getElementById('saveToast');
+            document.getElementById('saveToastText').textContent = text;
+            toast.style.display = 'flex';
+            setTimeout(() => { toast.style.display = 'none'; }, duration);
+        }
+
+        function confirmDelete(message, callback) {
+            document.getElementById('deleteMessage').textContent = message;
+            deleteCallback = callback;
+            const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            modal.show();
+        }
+
+        document.getElementById('btnConfirmDelete').addEventListener('click', function () {
+            if (deleteCallback) deleteCallback();
+            deleteCallback = null;
+            bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+        });
+
+        /* ═══════════════════════════════════════════
+           CONNECTION STATUS
+           ═══════════════════════════════════════════ */
+        window.addEventListener('online', () => updateSyncStatus('online'));
+        window.addEventListener('offline', () => updateSyncStatus('offline'));
+
+        /* ═══════════════════════════════════════════
+           SCHOOLS CRUD
+           ═══════════════════════════════════════════ */
+        function renderSchools() {
+            const container = document.getElementById('schoolsList');
+            if (appData.escuelas.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-building"></i><h5>No hay escuelas registradas</h5><p>Agrega tu primera escuela para comenzar.</p></div>';
+                return;
+            }
+            container.innerHTML = appData.escuelas.map(esc => {
+                const badgeClass = 'badge-' + esc.nivel.toLowerCase();
+                const groupCount = esc.grupos ? esc.grupos.length : 0;
+                return '<div class="ef-card">' +
+                    '<div class="ef-card-header">' +
+                    '<div>' +
+                    '<h5 style="cursor:pointer" onclick="showGroups(\'' + esc.id + '\')">' + escapeHtml(esc.nombre) + '</h5>' +
+                    '<div class="meta"><span class="badge-nivel ' + badgeClass + '">' + esc.nivel + '</span> · ' + esc.turno + ' · ' + esc.ciclo + ' · ' + groupCount + ' grupo' + (groupCount !== 1 ? 's' : '') + '</div>' +
+                    '</div>' +
+                    '<div class="action-btns">' +
+                    '<button class="btn-edit" title="Editar" onclick="editSchool(\'' + esc.id + '\')"><i class="bi bi-pencil-fill"></i></button>' +
+                    '<button class="btn-delete" title="Eliminar" onclick="deleteSchool(\'' + esc.id + '\')"><i class="bi bi-trash-fill"></i></button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function showSchoolForm(schoolId) {
+            const form = document.getElementById('formSchool');
+            form.reset();
+            document.getElementById('schoolId').value = '';
+            document.getElementById('schoolFormTitle').textContent = 'Nueva Escuela';
+            if (schoolId) {
+                const esc = appData.escuelas.find(e => e.id === schoolId);
+                if (esc) {
+                    document.getElementById('schoolId').value = esc.id;
+                    document.getElementById('schoolName').value = esc.nombre;
+                    document.getElementById('schoolLevel').value = esc.nivel;
+                    document.getElementById('schoolShift').value = esc.turno;
+                    document.getElementById('schoolYear').value = esc.ciclo;
+                    document.getElementById('schoolFormTitle').textContent = 'Editar Escuela';
+                }
+            }
+            showSection('secSchoolForm');
+        }
+
+        function editSchool(id) { showSchoolForm(id); }
+
+        async function saveSchool(event) {
+            event.preventDefault();
+            const id = document.getElementById('schoolId').value;
+            const schoolObj = {
+                id: id || uid(),
+                nombre: document.getElementById('schoolName').value.trim(),
+                nivel: document.getElementById('schoolLevel').value,
+                turno: document.getElementById('schoolShift').value,
+                ciclo: document.getElementById('schoolYear').value.trim(),
+                grupos: []
+            };
+            if (id) {
+                const idx = appData.escuelas.findIndex(e => e.id === id);
+                if (idx >= 0) {
+                    schoolObj.grupos = appData.escuelas[idx].grupos;
+                    appData.escuelas[idx] = schoolObj;
+                }
+            } else {
+                appData.escuelas.push(schoolObj);
+            }
+            await saveSchoolsToDrive();
+            navigateTo('escuelas');
+        }
+
+        function deleteSchool(id) {
+            const esc = appData.escuelas.find(e => e.id === id);
+            if (!esc) return;
+            confirmDelete('Se eliminará "' + esc.nombre + '" y todos sus grupos y alumnos.', async () => {
+                for (const grp of esc.grupos) {
+                    delete alumnosData[grp.id];
+                    await deleteJsonFile(grp.id + '.json');
+                }
+                appData.escuelas = appData.escuelas.filter(e => e.id !== id);
+                await saveSchoolsToDrive();
+                renderSchools();
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           GROUPS CRUD
+           ═══════════════════════════════════════════ */
+        function showGroups(schoolId) {
+            currentSchoolId = schoolId;
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            document.getElementById('groupsSchoolName').textContent = esc.nombre;
+            renderGroups(esc);
+            showSection('secGroups');
+        }
+
+        function renderGroups(esc) {
+            const container = document.getElementById('groupsList');
+            if (!esc.grupos || esc.grupos.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-people"></i><h5>No hay grupos</h5><p>Agrega un grupo para esta escuela.</p></div>';
+                return;
+            }
+            container.innerHTML = esc.grupos.map(grp => {
+                const studentCount = alumnosData[grp.id] ? alumnosData[grp.id].alumnos.length : 0;
+                return '<div class="ef-card">' +
+                    '<div class="ef-card-header">' +
+                    '<div>' +
+                    '<h5 style="cursor:pointer" onclick="showStudents(\'' + grp.id + '\')">' + grp.grado + grp.letra + '</h5>' +
+                    '<div class="meta">' + studentCount + ' alumno' + (studentCount !== 1 ? 's' : '') + '</div>' +
+                    '</div>' +
+                    '<div class="action-btns">' +
+                    '<button class="btn-edit" title="Editar" onclick="editGroup(\'' + grp.id + '\')"><i class="bi bi-pencil-fill"></i></button>' +
+                    '<button class="btn-delete" title="Eliminar" onclick="deleteGroup(\'' + grp.id + '\')"><i class="bi bi-trash-fill"></i></button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function showGroupForm(groupId) {
+            const esc = appData.escuelas.find(e => e.id === currentSchoolId);
+            if (!esc) return;
+            const grades = GRADE_MAP[esc.nivel] || [];
+            const gradeSelect = document.getElementById('groupGrade');
+            gradeSelect.innerHTML = grades.map(g => '<option value="' + g + '">' + g + '</option>').join('');
+            document.getElementById('groupId').value = '';
+            document.getElementById('groupFormTitle').textContent = 'Nuevo Grupo';
+            if (groupId) {
+                const grp = esc.grupos.find(g => g.id === groupId);
+                if (grp) {
+                    document.getElementById('groupId').value = grp.id;
+                    gradeSelect.value = grp.grado;
+                    document.getElementById('groupLetter').value = grp.letra;
+                    document.getElementById('groupFormTitle').textContent = 'Editar Grupo';
+                }
+            }
+            showSection('secGroupForm');
+        }
+
+        function editGroup(id) { showGroupForm(id); }
+
+        async function saveGroup(event) {
+            event.preventDefault();
+            const esc = appData.escuelas.find(e => e.id === currentSchoolId);
+            if (!esc) return;
+            const id = document.getElementById('groupId').value;
+            const groupObj = {
+                id: id || uid(),
+                grado: document.getElementById('groupGrade').value,
+                letra: document.getElementById('groupLetter').value
+            };
+            if (id) {
+                const idx = esc.grupos.findIndex(g => g.id === id);
+                if (idx >= 0) esc.grupos[idx] = groupObj;
+            } else {
+                esc.grupos.push(groupObj);
+                alumnosData[groupObj.id] = { grupoId: groupObj.id, alumnos: [] };
+            }
+            await saveSchoolsToDrive();
+            showGroups(currentSchoolId);
+        }
+
+        function deleteGroup(id) {
+            const esc = appData.escuelas.find(e => e.id === currentSchoolId);
+            if (!esc) return;
+            const grp = esc.grupos.find(g => g.id === id);
+            if (!grp) return;
+            confirmDelete('Se eliminará el grupo ' + grp.grado + grp.letra + ' y todos sus alumnos.', async () => {
+                esc.grupos = esc.grupos.filter(g => g.id !== id);
+                delete alumnosData[id];
+                await deleteJsonFile(id + '.json');
+                await saveSchoolsToDrive();
+                renderGroups(esc);
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           STUDENTS CRUD
+           ═══════════════════════════════════════════ */
+        function showStudents(groupId) {
+            currentGroupId = groupId;
+            const esc = appData.escuelas.find(e => e.id === currentSchoolId);
+            const grp = esc ? esc.grupos.find(g => g.id === groupId) : null;
+            if (!grp) return;
+            document.getElementById('studentsGroupName').textContent = grp.grado + grp.letra;
+            renderStudents(groupId);
+            showSection('secStudents');
+        }
+
+        function renderStudents(groupId) {
+            const container = document.getElementById('studentsList');
+            const data = alumnosData[groupId];
+            if (!data || data.alumnos.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="bi bi-person-lines-fill"></i><h5>No hay alumnos</h5><p>Agrega alumnos a este grupo.</p></div>';
+                return;
+            }
+            const sorted = [...data.alumnos].sort((a, b) => a.numero - b.numero);
+            let html = '<div class="ef-card" style="padding:0; overflow:hidden;">';
+            html += '<table class="student-table"><thead><tr><th style="width:60px;">N°</th><th>Nombre Completo</th><th style="width:90px; text-align:right;">Acciones</th></tr></thead><tbody>';
+            for (const alu of sorted) {
+                html += '<tr>' +
+                    '<td><strong>' + alu.numero + '</strong></td>' +
+                    '<td>' + escapeHtml(alu.nombre) + '</td>' +
+                    '<td class="text-end"><div class="action-btns justify-content-end">' +
+                    '<button class="btn-edit" onclick="editStudent(\'' + alu.id + '\')"><i class="bi bi-pencil-fill"></i></button>' +
+                    '<button class="btn-delete" onclick="deleteStudent(\'' + alu.id + '\')"><i class="bi bi-trash-fill"></i></button>' +
+                    '</div></td>' +
+                    '</tr>';
+            }
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function showStudentForm(studentId) {
+            document.getElementById('studentId').value = '';
+            document.getElementById('formStudent').reset();
+            document.getElementById('studentFormTitle').textContent = 'Nuevo Alumno';
+            const data = alumnosData[currentGroupId];
+            if (!studentId && data) {
+                document.getElementById('studentNumber').value = data.alumnos.length + 1;
+            }
+            if (studentId && data) {
+                const alu = data.alumnos.find(a => a.id === studentId);
+                if (alu) {
+                    document.getElementById('studentId').value = alu.id;
+                    document.getElementById('studentNumber').value = alu.numero;
+                    document.getElementById('studentName').value = alu.nombre;
+                    document.getElementById('studentFormTitle').textContent = 'Editar Alumno';
+                }
+            }
+            showSection('secStudentForm');
+        }
+
+        function editStudent(id) { showStudentForm(id); }
+
+        async function saveStudent(event) {
+            event.preventDefault();
+            if (!alumnosData[currentGroupId]) {
+                alumnosData[currentGroupId] = { grupoId: currentGroupId, alumnos: [] };
+            }
+            const data = alumnosData[currentGroupId];
+            const id = document.getElementById('studentId').value;
+            const studentObj = {
+                id: id || uid(),
+                numero: parseInt(document.getElementById('studentNumber').value, 10),
+                nombre: document.getElementById('studentName').value.trim()
+            };
+            if (id) {
+                const idx = data.alumnos.findIndex(a => a.id === id);
+                if (idx >= 0) data.alumnos[idx] = studentObj;
+            } else {
+                data.alumnos.push(studentObj);
+            }
+            await saveStudentsToDrive(currentGroupId);
+            showStudents(currentGroupId);
+        }
+
+        function deleteStudent(id) {
+            const data = alumnosData[currentGroupId];
+            if (!data) return;
+            const alu = data.alumnos.find(a => a.id === id);
+            if (!alu) return;
+            confirmDelete('Se eliminará al alumno "' + alu.nombre + '".', async () => {
+                data.alumnos = data.alumnos.filter(a => a.id !== id);
+                await saveStudentsToDrive(currentGroupId);
+                renderStudents(currentGroupId);
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           XSS PROTECTION
+           ═══════════════════════════════════════════ */
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        /* ═══════════════════════════════════════════
+           RASGOS MODULE
+           ═══════════════════════════════════════════ */
+
+        function initRasgosSelectors() {
+            const sel = document.getElementById('rasgosSchool');
+            if (sel) {
+                sel.innerHTML = '<option value="">Seleccionar escuela...</option>' +
+                    appData.escuelas.map(e => '<option value="' + e.id + '">' + escapeHtml(e.nombre) + ' (' + e.nivel + ')</option>').join('');
+            }
+            const gSel = document.getElementById('rasgosGrade');
+            if (gSel) gSel.innerHTML = '<option value="">Seleccionar grado...</option>';
+
+            const tSel = document.getElementById('rasgosTrimester');
+            if (tSel) tSel.value = '';
+
+            const content = document.getElementById('rasgosContent');
+            if (content) content.innerHTML = '<div class="empty-state"><i class="bi bi-star"></i><h5>Selecciona escuela, grado y trimestre</h5><p>Configura los rasgos de evaluación para cada combinación.</p></div>';
+        }
+
+        function onRasgosSchoolChange() {
+            const schoolId = document.getElementById('rasgosSchool').value;
+            const gradeSel = document.getElementById('rasgosGrade');
+            if (!schoolId) {
+                gradeSel.innerHTML = '<option value="">Seleccionar grado...</option>';
+                return;
+            }
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            const grades = GRADE_MAP[esc.nivel] || [];
+            gradeSel.innerHTML = '<option value="">Seleccionar grado...</option>' +
+                grades.map(g => '<option value="' + g + '">' + g + '</option>').join('');
+            onRasgosFilterChange();
+        }
+
+        function onRasgosFilterChange() {
+            const schoolId = document.getElementById('rasgosSchool').value;
+            const grade = document.getElementById('rasgosGrade').value;
+            const trimester = document.getElementById('rasgosTrimester').value;
+            if (!schoolId || !grade || !trimester) {
+                document.getElementById('rasgosContent').innerHTML = '<div class="empty-state"><i class="bi bi-star"></i><h5>Completa la selección</h5><p>Selecciona escuela, grado y trimestre.</p></div>';
+                return;
+            }
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            const key = esc.nivel.toLowerCase() + '_' + grade.replace('°', '') + '_' + trimester;
+            const existing = rasgosData[key];
+            const count = existing ? existing.rasgos.length : 0;
+            const total = existing ? existing.rasgos.reduce((s, r) => s + r.porcentaje, 0) : 0;
+            document.getElementById('rasgosContent').innerHTML =
+                '<div class="ef-card">' +
+                '<div class="ef-card-header">' +
+                '<div>' +
+                '<h5>' + esc.nivel + ' ' + grade + ' — Trimestre ' + trimester + '</h5>' +
+                '<div class="meta">' + count + ' rasgo' + (count !== 1 ? 's' : '') + ' · ' + total + '%</div>' +
+                '</div>' +
+                '<button class="btn-primary-ef" onclick="openRasgosEditor(\'' + key + '\', \'' + esc.nivel + '\', \'' + grade + '\', \'' + trimester + '\')">' +
+                '<i class="bi bi-pencil"></i> ' + (count > 0 ? 'Editar' : 'Configurar') +
+                '</button>' +
+                '</div>' +
+                (count > 0 ? renderRasgosPreview(existing) : '<p class="text-muted mt-2">No se han configurado rasgos aún.</p>') +
+                '</div>';
+        }
+
+        function renderRasgosPreview(config) {
+            let html = '<div class="mt-3">';
+            for (const r of config.rasgos) {
+                html += '<div class="rasgo-item"><span class="rasgo-name">' + escapeHtml(r.nombre) + '</span><span class="rasgo-pct">' + r.porcentaje + '%</span></div>';
+            }
+            html += '<div class="nivel-row mt-2">';
+            config.niveles.forEach((n, i) => {
+                html += '<span class="nivel-chip n' + (i + 1) + '">Nivel ' + (i + 1) + ': ' + escapeHtml(n) + '</span>';
+            });
+            html += '</div></div>';
+            return html;
+        }
+
+        function openRasgosEditor(key, nivel, grade, trimester) {
+            currentRasgosKey = key;
+            document.getElementById('rasgosEditorTitle').textContent = nivel + ' ' + grade + ' — Trimestre ' + trimester;
+            const existing = rasgosData[key];
+            if (existing) {
+                currentRasgosConfig = JSON.parse(JSON.stringify(existing));
+            } else {
+                currentRasgosConfig = {
+                    nivel: nivel,
+                    grado: grade,
+                    trimestre: trimester,
+                    niveles: ['Inicio', 'En proceso', 'Logrado', 'Destacado'],
+                    rasgos: []
+                };
+            }
+            document.getElementById('nivelName1').value = currentRasgosConfig.niveles[0] || 'Inicio';
+            document.getElementById('nivelName2').value = currentRasgosConfig.niveles[1] || 'En proceso';
+            document.getElementById('nivelName3').value = currentRasgosConfig.niveles[2] || 'Logrado';
+            document.getElementById('nivelName4').value = currentRasgosConfig.niveles[3] || 'Destacado';
+            document.getElementById('newRasgoName').value = '';
+            document.getElementById('newRasgoPct').value = '';
+            renderRasgosList();
+            updatePctBar();
+            showSection('secRasgosEditor');
+        }
+
+        function renderRasgosList() {
+            const container = document.getElementById('rasgosList');
+            if (!currentRasgosConfig || currentRasgosConfig.rasgos.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted p-3"><i class="bi bi-inbox" style="font-size:1.5rem;"></i><p class="mt-1">Agrega rasgos de evaluación</p></div>';
+                return;
+            }
+            container.innerHTML = currentRasgosConfig.rasgos.map((r, i) =>
+                '<div class="rasgo-item">' +
+                '<span class="rasgo-name">' + escapeHtml(r.nombre) + '</span>' +
+                '<span class="rasgo-pct">' + r.porcentaje + '%</span>' +
+                '<div class="action-btns">' +
+                '<button class="btn-edit" onclick="editRasgo(' + i + ')"><i class="bi bi-pencil-fill"></i></button>' +
+                '<button class="btn-delete" onclick="removeRasgo(' + i + ')"><i class="bi bi-trash-fill"></i></button>' +
+                '</div>' +
+                '</div>'
+            ).join('');
+        }
+
+        function addRasgo() {
+            const name = document.getElementById('newRasgoName').value.trim();
+            const pct = parseInt(document.getElementById('newRasgoPct').value, 10);
+            if (!name || !pct || pct < 1) {
+                alert('Ingresa nombre y porcentaje válido.');
+                return;
+            }
+            currentRasgosConfig.rasgos.push({ id: uid(), nombre: name, porcentaje: pct });
+            document.getElementById('newRasgoName').value = '';
+            document.getElementById('newRasgoPct').value = '';
+            renderRasgosList();
+            updatePctBar();
+        }
+
+        function editRasgo(index) {
+            const r = currentRasgosConfig.rasgos[index];
+            const newName = prompt('Nombre del rasgo:', r.nombre);
+            if (newName === null) return;
+            const newPct = prompt('Porcentaje:', r.porcentaje);
+            if (newPct === null) return;
+            const parsed = parseInt(newPct, 10);
+            if (!newName.trim() || isNaN(parsed) || parsed < 1) {
+                alert('Valores inválidos.');
+                return;
+            }
+            r.nombre = newName.trim();
+            r.porcentaje = parsed;
+            renderRasgosList();
+            updatePctBar();
+        }
+
+        function removeRasgo(index) {
+            currentRasgosConfig.rasgos.splice(index, 1);
+            renderRasgosList();
+            updatePctBar();
+        }
+
+        function updatePctBar() {
+            const total = currentRasgosConfig.rasgos.reduce((s, r) => s + r.porcentaje, 0);
+            const bar = document.getElementById('pctBar');
+            const label = document.getElementById('pctLabel');
+            const hint = document.getElementById('pctHint');
+            const btn = document.getElementById('btnSaveRasgos');
+            const pct = Math.min(total, 100);
+            bar.style.width = pct + '%';
+            bar.textContent = total + '%';
+            label.textContent = total + '%';
+            bar.className = 'pct-bar-fill ';
+            if (total === 100) {
+                bar.classList.add('perfect');
+                hint.textContent = '✓ ¡Perfecto! La suma es exactamente 100%.';
+                hint.style.color = '#2E7D32';
+                btn.disabled = false;
+            } else if (total > 100) {
+                bar.classList.add('over');
+                hint.textContent = '⚠ La suma excede 100% por ' + (total - 100) + '%. Ajusta los porcentajes.';
+                hint.style.color = '#F44336';
+                btn.disabled = true;
+            } else {
+                bar.classList.add(total > 80 ? 'warn' : 'ok');
+                hint.textContent = 'Faltan ' + (100 - total) + '% para completar.';
+                hint.style.color = '#888';
+                btn.disabled = true;
+            }
+        }
+
+        async function saveRasgos() {
+            currentRasgosConfig.niveles = [
+                document.getElementById('nivelName1').value.trim() || 'Inicio',
+                document.getElementById('nivelName2').value.trim() || 'En proceso',
+                document.getElementById('nivelName3').value.trim() || 'Logrado',
+                document.getElementById('nivelName4').value.trim() || 'Destacado'
+            ];
+            rasgosData[currentRasgosKey] = JSON.parse(JSON.stringify(currentRasgosConfig));
+            try {
+                await writeJsonFile(rasgosFolderId, currentRasgosKey + '.json', currentRasgosConfig);
+            } catch (err) {
+                console.error('Save rasgos error:', err);
+                updateSyncStatus('offline');
+            }
+            navigateTo('rasgos');
+            onRasgosFilterChange();
+        }
+
+        function saveTemplate() {
+            if (!currentRasgosConfig || currentRasgosConfig.rasgos.length === 0) {
+                alert('Agrega al menos un rasgo antes de guardar como plantilla.');
+                return;
+            }
+            const name = prompt('Nombre para la plantilla:', currentRasgosConfig.nivel + ' — Plantilla');
+            if (!name) return;
+            const tpl = {
+                id: uid(),
+                nombre: name.trim(),
+                niveles: [
+                    document.getElementById('nivelName1').value.trim() || 'Inicio',
+                    document.getElementById('nivelName2').value.trim() || 'En proceso',
+                    document.getElementById('nivelName3').value.trim() || 'Logrado',
+                    document.getElementById('nivelName4').value.trim() || 'Destacado'
+                ],
+                rasgos: currentRasgosConfig.rasgos.map(r => ({ nombre: r.nombre, porcentaje: r.porcentaje }))
+            };
+            rasgosTemplates.push(tpl);
+            saveTemplatesToDrive();
+            showSaveToast('Plantilla guardada');
+        }
+
+        function showLoadTemplate() {
+            if (rasgosTemplates.length === 0) {
+                alert('No hay plantillas guardadas.');
+                return;
+            }
+            const options = rasgosTemplates.map((t, i) => (i + 1) + '. ' + t.nombre).join('\n');
+            const choice = prompt('Selecciona una plantilla (número):\n' + options);
+            if (!choice) return;
+            const idx = parseInt(choice, 10) - 1;
+            if (idx < 0 || idx >= rasgosTemplates.length) {
+                alert('Opción inválida.');
+                return;
+            }
+            const tpl = rasgosTemplates[idx];
+            currentRasgosConfig.rasgos = tpl.rasgos.map(r => ({ id: uid(), nombre: r.nombre, porcentaje: r.porcentaje }));
+            currentRasgosConfig.niveles = [...tpl.niveles];
+            document.getElementById('nivelName1').value = tpl.niveles[0] || 'Inicio';
+            document.getElementById('nivelName2').value = tpl.niveles[1] || 'En proceso';
+            document.getElementById('nivelName3').value = tpl.niveles[2] || 'Logrado';
+            document.getElementById('nivelName4').value = tpl.niveles[3] || 'Destacado';
+            renderRasgosList();
+            updatePctBar();
+            showSaveToast('Plantilla aplicada: ' + tpl.nombre);
+        }
+
+        async function saveTemplatesToDrive() {
+            try {
+                await writeJsonFile(driveFolderId, 'plantillas_rasgos.json', { plantillas: rasgosTemplates });
+            } catch (err) {
+                console.error('Save templates error:', err);
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           EVALUATION MODULE
+           ═══════════════════════════════════════════ */
+
+        function initEvalSelectors() {
+            const sel = document.getElementById('evalSchool');
+            sel.innerHTML = '<option value="">Seleccionar escuela...</option>' +
+                appData.escuelas.map(e => '<option value="' + e.id + '">' + escapeHtml(e.nombre) + ' (' + e.nivel + ')</option>').join('');
+            document.getElementById('evalGroup').innerHTML = '<option value="">Seleccionar grupo...</option>';
+            document.getElementById('evalWorkspace').style.display = 'none';
+            document.getElementById('evalEmptyState').style.display = 'block';
+            document.getElementById('evalEmptyState').innerHTML = '<i class="bi bi-clipboard-check"></i><h5>Selecciona escuela, grupo y trimestre</h5><p>Luego podrás evaluar a todos los alumnos por rasgo.</p>';
+        }
+
+        function onEvalSchoolChange() {
+            currentEvalSchoolId = document.getElementById('evalSchool').value;
+            const grpSel = document.getElementById('evalGroup');
+            if (!currentEvalSchoolId) {
+                grpSel.innerHTML = '<option value="">Seleccionar grupo...</option>';
+                return;
+            }
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            if (!esc) return;
+            grpSel.innerHTML = '<option value="">Seleccionar grupo...</option>' +
+                (esc.grupos || []).map(g => '<option value="' + g.id + '">' + g.grado + g.letra + '</option>').join('');
+            onEvalGroupChange();
+        }
+
+        function onEvalGroupChange() {
+            currentEvalGroupId = document.getElementById('evalGroup').value;
+            onEvalTrimesterChange();
+        }
+
+        function onEvalTrimesterChange() {
+            currentEvalTrimestre = document.getElementById('evalTrimester').value;
+            if (!currentEvalSchoolId || !currentEvalGroupId || !currentEvalTrimestre) {
+                document.getElementById('evalWorkspace').style.display = 'none';
+                document.getElementById('evalEmptyState').style.display = 'block';
+                return;
+            }
+
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc ? esc.grupos.find(g => g.id === currentEvalGroupId) : null;
+            if (!esc || !grp) return;
+
+            evalIsPreescolar = (esc.nivel === 'Preescolar');
+            evalMinGrade = evalIsPreescolar ? 0 : (esc.nivel === 'Primaria' && grp.grado === '1°' ? 6 : 5);
+            evalMaxGrade = evalIsPreescolar ? 0 : 10;
+
+            const rasgosKey = esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre;
+            const rasgosConfig = rasgosData[rasgosKey];
+
+            if (!rasgosConfig || rasgosConfig.rasgos.length === 0) {
+                document.getElementById('evalWorkspace').style.display = 'none';
+                document.getElementById('evalEmptyState').style.display = 'block';
+                document.getElementById('evalEmptyState').innerHTML = '<i class="bi bi-exclamation-triangle"></i><h5>Sin rasgos configurados</h5><p>Configura los rasgos en el módulo Rasgos para ' + esc.nivel + ' ' + grp.grado + ' Trimestre ' + currentEvalTrimestre + '.</p>';
+                return;
+            }
+
+            const data = alumnosData[currentEvalGroupId];
+            if (!data || data.alumnos.length === 0) {
+                document.getElementById('evalWorkspace').style.display = 'none';
+                document.getElementById('evalEmptyState').style.display = 'block';
+                document.getElementById('evalEmptyState').innerHTML = '<i class="bi bi-person-lines-fill"></i><h5>No hay alumnos en este grupo</h5><p>Agrega alumnos desde el módulo Escuelas.</p>';
+                return;
+            }
+
+            // Initialization of evaluation data structure if it doesn't exist
+            for (const alu of data.alumnos) {
+                const evalKey = alu.id + '_' + currentEvalTrimestre;
+                if (!evaluacionesData[evalKey]) {
+                    evaluacionesData[evalKey] = {
+                        alumnoId: alu.id,
+                        trimestre: currentEvalTrimestre,
+                        selecciones: {},
+                        calificacionCalculada: evalIsPreescolar ? rasgosConfig.niveles[0] || 'Inicio' : 0,
+                        calificacionFinal: evalIsPreescolar ? rasgosConfig.niveles[0] || 'Inicio' : 0,
+                        comentario: '',
+                        esPreescolar: evalIsPreescolar
+                    };
+                }
+            }
+
+            renderEvalTabs(rasgosConfig);
+        }
+
+        function renderEvalTabs(rasgosConfig) {
+            document.getElementById('evalEmptyState').style.display = 'none';
+            document.getElementById('evalWorkspace').style.display = 'block';
+
+            let tabsHtml = '';
+            rasgosConfig.rasgos.forEach((r, i) => {
+                const isActive = (currentEvalTabId === '' && i === 0) || currentEvalTabId === r.id;
+                tabsHtml += '<button class="report-tab ' + (isActive ? 'active' : '') + '" onclick="switchEvalTab(\'' + r.id + '\', this)">' + escapeHtml(r.nombre) + '</button>';
+            });
+            const isResumenActive = currentEvalTabId === 'resumen';
+            tabsHtml += '<button class="report-tab ' + (isResumenActive ? 'active' : '') + '" onclick="switchEvalTab(\'resumen\', this)">Resumen y Comentarios</button>';
+
+            document.getElementById('evalTabBar').innerHTML = tabsHtml;
+
+            // Render content for active tab
+            if (!currentEvalTabId || currentEvalTabId !== 'resumen') {
+                const firstRasgoId = currentEvalTabId || rasgosConfig.rasgos[0].id;
+                currentEvalTabId = firstRasgoId;
+                renderEvalByRasgo(firstRasgoId, rasgosConfig);
+            } else {
+                renderEvalResumen(rasgosConfig);
+            }
+        }
+
+        function switchEvalTab(tabId, el) {
+            currentEvalTabId = tabId;
+            el.parentElement.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc.grupos.find(g => g.id === currentEvalGroupId);
+            const rasgosKey = esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre;
+            const rasgosConfig = rasgosData[rasgosKey];
+
+            if (tabId === 'resumen') {
+                renderEvalResumen(rasgosConfig);
+            } else {
+                renderEvalByRasgo(tabId, rasgosConfig);
+            }
+        }
+
+        function renderEvalByRasgo(rasgoId, rasgosConfig) {
+            const rasgo = rasgosConfig.rasgos.find(r => r.id === rasgoId);
+            if (!rasgo) return;
+
+            const niveles = rasgosConfig.niveles || ['Inicio', 'En proceso', 'Logrado', 'Destacado'];
+            const sortedAlumnos = [...alumnosData[currentEvalGroupId].alumnos].sort((a, b) => a.numero - b.numero);
+
+            let html = '<div class="ef-card"><table class="student-table" style="table-layout:fixed;">' +
+                '<thead><tr><th style="width:40%">Alumno</th><th style="width:60%">Evaluación (' + rasgo.porcentaje + '%)</th></tr></thead><tbody>';
+
+            for (const alu of sortedAlumnos) {
+                const evalKey = alu.id + '_' + currentEvalTrimestre;
+                const evalData = evaluacionesData[evalKey];
+                const selected = evalData.selecciones[rasgoId] || 0;
+
+                html += '<tr><td><strong>' + alu.numero + '.</strong> ' + escapeHtml(alu.nombre) + '</td><td><div class="eval-level-group" style="margin-bottom:0;">';
+                for (let lvl = 1; lvl <= 4; lvl++) {
+                    const selClass = selected === lvl ? ' selected-' + lvl : '';
+                    html += '<div class="eval-level-btn' + selClass + '" onclick="selectLevelForStudent(\'' + alu.id + '\', \'' + rasgoId + '\', ' + lvl + ', this)" style="padding:10px 4px; border-radius:8px;">' +
+                        '<span class="lvl-num" style="font-size:1.1rem;">' + lvl + '</span><span style="font-size:.75rem;">' + escapeHtml(niveles[lvl - 1]) + '</span>' +
+                        '</div>';
+                }
+                html += '</div></td></tr>';
+            }
+            html += '</tbody></table></div>';
+            document.getElementById('evalTabContent').innerHTML = html;
+        }
+
+        function renderEvalResumen(rasgosConfig) {
+            const sortedAlumnos = [...alumnosData[currentEvalGroupId].alumnos].sort((a, b) => a.numero - b.numero);
+
+            let html = '<div class="ef-card"><table class="student-table">' +
+                '<thead><tr><th style="width:40px">N°</th><th>Alumno</th><th style="text-align:center;">Calif. Final</th><th style="text-align:center;">Ajuste</th><th style="text-align:right;">Comentarios</th></tr></thead><tbody>';
+
+            for (const alu of sortedAlumnos) {
+                const evalKey = alu.id + '_' + currentEvalTrimestre;
+                const evalData = evaluacionesData[evalKey];
+
+                // Formater for preescolar vs others
+                let finalGradeDisplay = evalData.calificacionFinal;
+                let manualInput = '';
+
+                if (evalIsPreescolar) {
+                    manualInput = '<span class="text-muted">—</span>';
+                } else {
+                    const val = evalData.calificacionManual !== undefined ? evalData.calificacionManual : '';
+                    manualInput = '<input type="number" class="form-control form-control-sm mx-auto" style="width:60px; text-align:center; font-weight:bold;" min="' + evalMinGrade + '" max="' + evalMaxGrade + '" value="' + val + '" onchange="overrideGradeForStudent(\'' + alu.id + '\', this.value)">';
+                }
+
+                const commentIcon = evalData.comentario && evalData.comentario.trim() !== '' ? 'bi-chat-left-text-fill text-success' : 'bi-chat-left-text';
+
+                html += '<tr>' +
+                    '<td><strong>' + alu.numero + '</strong></td>' +
+                    '<td>' + escapeHtml(alu.nombre) + '</td>' +
+                    '<td class="text-center"><span class="badge ' + (evalIsPreescolar ? 'bg-info' : 'bg-primary') + '" style="font-size:.9rem;" id="resumenGrade_' + alu.id + '">' + finalGradeDisplay + '</span></td>' +
+                    '<td class="text-center">' + manualInput + '</td>' +
+                    '<td class="text-end">' +
+                    '<button class="btn btn-sm btn-outline-secondary" onclick="openCommentModal(\'' + alu.id + '\')"><i class="bi ' + commentIcon + '" id="commentIco_' + alu.id + '"></i> Comentar</button>' +
+                    '</td>' +
+                    '</tr>';
+            }
+            html += '</tbody></table></div>';
+            document.getElementById('evalTabContent').innerHTML = html;
+        }
+
+        function selectLevelForStudent(alumnoId, rasgoId, level, el) {
+            const evalKey = alumnoId + '_' + currentEvalTrimestre;
+            const evalData = evaluacionesData[evalKey];
+            evalData.selecciones[rasgoId] = level;
+
+            // Update UI
+            const parent = el.parentElement;
+            parent.querySelectorAll('.eval-level-btn').forEach(b => b.className = 'eval-level-btn');
+            el.classList.add('selected-' + level);
+
+            // Re-calculate grade behind the scenes
+            calculateGradeForStudent(alumnoId);
+        }
+
+        function overrideGradeForStudent(alumnoId, valStr) {
+            const evalKey = alumnoId + '_' + currentEvalTrimestre;
+            const evalData = evaluacionesData[evalKey];
+
+            if (valStr.trim() === '') {
+                evalData.calificacionManual = undefined;
+            } else {
+                const manual = parseInt(valStr, 10);
+                if (!isNaN(manual) && manual >= evalMinGrade && manual <= evalMaxGrade) {
+                    evalData.calificacionManual = manual;
+                } else {
+                    alert('La calificación debe estar entre ' + evalMinGrade + ' y ' + evalMaxGrade);
+                    // Reset input
+                    renderEvalResumen(getRasgosConfigCached());
+                    return;
+                }
+            }
+
+            calculateGradeForStudent(alumnoId);
+            // Update UI label if in Resume mode
+            const gradeBadge = document.getElementById('resumenGrade_' + alumnoId);
+            if (gradeBadge) {
+                gradeBadge.textContent = evalData.calificacionFinal;
+            }
+        }
+
+        function getRasgosConfigCached() {
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc.grupos.find(g => g.id === currentEvalGroupId);
+            return rasgosData[esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre];
+        }
+
+        function calculateGradeForStudent(alumnoId) {
+            const evalKey = alumnoId + '_' + currentEvalTrimestre;
+            const evalData = evaluacionesData[evalKey];
+            const rasgosConfig = getRasgosConfigCached();
+
+            if (!rasgosConfig) return;
+
+            let weightedSum = 0;
+            let totalWeight = 0;
+            for (const rasgo of rasgosConfig.rasgos) {
+                const lvl = evalData.selecciones[rasgo.id] || 0;
+                if (lvl > 0) {
+                    const lvlPct = [0.25, 0.50, 0.75, 1.0][lvl - 1];
+                    weightedSum += rasgo.porcentaje * lvlPct;
+                    totalWeight += rasgo.porcentaje;
+                }
+            }
+
+            if (evalIsPreescolar) {
+                const pct = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
+                const lvlNames = rasgosConfig.niveles || ['Inicio', 'En proceso', 'Logrado', 'Destacado'];
+                let descriptor = lvlNames[0];
+                if (pct >= 88) descriptor = lvlNames[3];
+                else if (pct >= 63) descriptor = lvlNames[2];
+                else if (pct >= 38) descriptor = lvlNames[1];
+
+                evalData.calificacionCalculada = descriptor;
+                evalData.calificacionFinal = descriptor;
+                return;
+            }
+
+            if (totalWeight === 0) {
+                evalData.calificacionCalculada = 0;
+                evalData.calificacionFinal = 0;
+                return;
+            }
+
+            const rawPct = weightedSum / 100;
+            let grade = evalMinGrade + (rawPct * (evalMaxGrade - evalMinGrade));
+            grade = Math.round(grade);
+            grade = Math.max(evalMinGrade, Math.min(evalMaxGrade, grade));
+
+            evalData.calificacionCalculada = grade;
+            evalData.calificacionFinal = evalData.calificacionManual !== undefined ? evalData.calificacionManual : grade;
+        }
+
+        function openCommentModal(alumnoId) {
+            currentCommentAlumnoId = alumnoId;
+            const evalKey = alumnoId + '_' + currentEvalTrimestre;
+            const evalData = evaluacionesData[evalKey];
+
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc.grupos.find(g => g.id === currentEvalGroupId);
+            const alu = alumnosData[currentEvalGroupId].alumnos.find(a => a.id === alumnoId);
+
+            document.getElementById('commentModalStudentName').textContent = escapeHtml(alu.nombre);
+            document.getElementById('evalStudentComment').value = evalData.comentario || '';
+
+            // Load predefined chips
+            const key = esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre;
+            const comments = commentTemplatesData[key] || [
+                'Necesita mejorar su participación.',
+                'Muestra avance en habilidades motrices.',
+                'Excelente actitud y desempeño.'
+            ];
+
+            document.getElementById('evalCommentChips').innerHTML = comments.map(c =>
+                '<span class="comment-chip" onclick="appendComment(\'' + escapeHtml(c).replace(/'/g, "\\'") + '\')">' + escapeHtml(c) + '</span>'
+            ).join('');
+
+            showSection('secEvalCommentModal');
+        }
+
+        function appendComment(text) {
+            const ta = document.getElementById('evalStudentComment');
+            ta.value = (ta.value ? ta.value + ' ' : '') + text;
+        }
+
+        function saveStudentComment() {
+            const evalKey = currentCommentAlumnoId + '_' + currentEvalTrimestre;
+            const evalData = evaluacionesData[evalKey];
+            evalData.comentario = document.getElementById('evalStudentComment').value.trim();
+
+            const icon = document.getElementById('commentIco_' + currentCommentAlumnoId);
+            if (icon) {
+                icon.className = evalData.comentario !== '' ? 'bi bi-chat-left-text-fill text-success' : 'bi bi-chat-left-text';
+            }
+
+            showSection('secEvaluacion');
+        }
+
+        function showCommentConfig() {
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc.grupos.find(g => g.id === currentEvalGroupId);
+            const key = esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre;
+            const comments = commentTemplatesData[key] || [
+                'Necesita mejorar su participación.',
+                'Muestra avance en habilidades motrices.',
+                'Excelente actitud y desempeño.'
+            ];
+            document.getElementById('commentConfigText').value = comments.join('\n');
+            showSection('secCommentConfig');
+        }
+
+        async function saveCommentConfig() {
+            const esc = appData.escuelas.find(e => e.id === currentEvalSchoolId);
+            const grp = esc.grupos.find(g => g.id === currentEvalGroupId);
+            const key = esc.nivel.toLowerCase() + '_' + grp.grado.replace('°', '') + '_' + currentEvalTrimestre;
+            const lines = document.getElementById('commentConfigText').value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            commentTemplatesData[key] = lines;
+            try {
+                await writeJsonFile(driveFolderId, 'comentarios_predefinidos.json', commentTemplatesData);
+            } catch (err) {
+                console.error('Save comment config error:', err);
+            }
+            // Go back to modal
+            openCommentModal(currentCommentAlumnoId);
+        }
+
+        async function saveAllEvaluations() {
+            if (!navigator.onLine) {
+                alert("Necesitas conexión a internet para guardar las evaluaciones en Drive.");
+                return;
+            }
+
+            updateSyncStatus('syncing', 'Guardando grupo...');
+            const btn = document.getElementById('btnSaveEvalGroup');
+            btn.disabled = true;
+
+            const data = alumnosData[currentEvalGroupId];
+
+            try {
+                // To avoid sending 30 concurrent requests and hitting rate limits, 
+                // we batch them or send them sequentially. We'll send them sequentially for maximum safety.
+                for (const alu of data.alumnos) {
+                    const evalKey = alu.id + '_' + currentEvalTrimestre;
+                    const evalData = evaluacionesData[evalKey];
+                    // Only save if there are selections or a comment or a manual grade
+                    const hasData = Object.keys(evalData.selecciones).length > 0 || evalData.comentario !== '' || evalData.calificacionManual !== undefined;
+
+                    if (hasData) {
+                        evalData.timestamp = new Date().toISOString();
+                        await writeJsonFile(evaluacionesFolderId, evalKey + '.json', evalData);
+                    }
+                }
+
+                updateSyncStatus('saved', 'Evaluaciones guardadas');
+                showSaveToast('Evaluaciones del grupo guardadas exitosamente', 3000);
+            } catch (err) {
+                console.error('Error saving group evals:', err);
+                updateSyncStatus('offline', 'Error de guardado');
+                alert("Hubo un error al guardar algunas evaluaciones. Verifica tu conexión e intenta de nuevo.");
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           REPORTS MODULE
+           ═══════════════════════════════════════════ */
+
+        let currentReportTab = 'grupo';
+        let lastReportPdfBytes = null;
+        let lastReportFileName = '';
+        let lastReportDriveId = '';
+
+        function initReportSelectors() {
+            const sel = document.getElementById('reportSchool');
+            sel.innerHTML = '<option value="">Seleccionar escuela...</option>' +
+                appData.escuelas.map(e => '<option value="' + e.id + '">' + escapeHtml(e.nombre) + ' (' + e.nivel + ')</option>').join('');
+            document.getElementById('reportGroup').innerHTML = '<option value="">Seleccionar grupo...</option>';
+            document.getElementById('reportPrintArea').innerHTML = '<div class="empty-state"><i class="bi bi-bar-chart-line"></i><h5>Selecciona escuela, grupo y trimestre</h5><p>Se mostrará la vista previa del reporte.</p></div>';
+            document.getElementById('reportTabBar').style.display = 'none';
+            document.getElementById('reportActions').style.display = 'none';
+        }
+
+        function onReportSchoolChange() {
+            const schoolId = document.getElementById('reportSchool').value;
+            const grpSel = document.getElementById('reportGroup');
+            if (!schoolId) {
+                grpSel.innerHTML = '<option value="">Seleccionar grupo...</option>';
+                return;
+            }
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            grpSel.innerHTML = '<option value="">Seleccionar grupo...</option>' +
+                (esc.grupos || []).map(g => '<option value="' + g.id + '">' + g.grado + g.letra + '</option>').join('');
+            onReportFilterChange();
+        }
+
+        function onReportFilterChange() {
+            const schoolId = document.getElementById('reportSchool').value;
+            const groupId = document.getElementById('reportGroup').value;
+            const trimester = document.getElementById('reportTrimester').value;
+            if (!schoolId || !groupId || !trimester) {
+                document.getElementById('reportPrintArea').innerHTML = '<div class="empty-state"><i class="bi bi-bar-chart-line"></i><h5>Completa la selección</h5></div>';
+                document.getElementById('reportTabBar').style.display = 'none';
+                document.getElementById('reportActions').style.display = 'none';
+                return;
+            }
+            document.getElementById('reportTabBar').style.display = 'flex';
+            document.getElementById('reportActions').style.display = 'flex';
+            currentReportTab = 'grupo';
+            document.querySelectorAll('.report-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+            renderGroupReport(schoolId, groupId, trimester);
+        }
+
+        function switchReportTab(tab, el) {
+            currentReportTab = tab;
+            el.parentElement.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            const schoolId = document.getElementById('reportSchool').value;
+            const groupId = document.getElementById('reportGroup').value;
+            const trimester = document.getElementById('reportTrimester').value;
+            if (tab === 'grupo') renderGroupReport(schoolId, groupId, trimester);
+            else renderBoletaReport(schoolId, groupId);
+        }
+
+        function getReportHeader(esc, grp, trimester, userName) {
+            return '<div class="report-header">' +
+                '<img src="icons/profef%201.png" class="report-logo" alt="PROFEf" style="width: auto; max-height: 50px; object-fit: contain;" onerror="this.style.display=\'none\'">' +
+                '<h3>Evaluando Educación Física</h3>' +
+                '<div class="report-meta">' +
+                '<strong>' + escapeHtml(esc.nombre) + '</strong><br>' +
+                esc.nivel + ' — ' + grp.grado + grp.letra + ' — Turno ' + esc.turno + '<br>' +
+                'Ciclo Escolar: ' + escapeHtml(esc.ciclo) + '<br>' +
+                'Docente: ' + escapeHtml(userName) + '<br>' +
+                (trimester ? 'Trimestre ' + trimester : 'Todos los trimestres') +
+                '</div>' +
+                '</div>';
+        }
+
+        function renderGroupReport(schoolId, groupId, trimester) {
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            const grp = esc.grupos.find(g => g.id === groupId);
+            if (!grp) return;
+            const data = alumnosData[groupId];
+            if (!data || data.alumnos.length === 0) {
+                document.getElementById('reportPrintArea').innerHTML = '<div class="empty-state"><i class="bi bi-person-x"></i><h5>No hay alumnos</h5></div>';
+                return;
+            }
+            const userName = document.getElementById('userName').textContent;
+            const isPreescolar = esc.nivel === 'Preescolar';
+            const sorted = [...data.alumnos].sort((a, b) => a.numero - b.numero);
+
+            let html = '<div class="report-preview" id="reportContent">';
+            html += getReportHeader(esc, grp, trimester, userName);
+            html += '<table class="report-table"><thead><tr>';
+            html += '<th style="width:40px">N°</th><th style="width:220px">Alumno</th><th style="width:90px;text-align:center">Calificación</th><th>Comentario</th>';
+            html += '</tr></thead><tbody>';
+
+            for (const alu of sorted) {
+                const evalKey = alu.id + '_' + trimester;
+                const ev = evaluacionesData[evalKey];
+                let grade = '—';
+                let comment = '';
+                if (ev) {
+                    grade = isPreescolar ? 'S/C' : (ev.calificacionFinal || '—');
+                    comment = ev.comentario || '';
+                }
+                const alumnoNombre = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                html += '<tr>' +
+                    '<td><strong>' + alu.numero + '</strong></td>' +
+                    '<td>' + escapeHtml(alumnoNombre) + '</td>' +
+                    '<td style="text-align:center;font-weight:700">' + grade + '</td>' +
+                    '<td style="font-size:.8rem">' + escapeHtml(comment) + '</td>' +
+                    '</tr>';
+            }
+            html += '</tbody></table></div>';
+            document.getElementById('reportPrintArea').innerHTML = html;
+        }
+
+        function renderBoletaReport(schoolId, groupId) {
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            const grp = esc.grupos.find(g => g.id === groupId);
+            if (!grp) return;
+            const data = alumnosData[groupId];
+            if (!data || data.alumnos.length === 0) {
+                document.getElementById('reportPrintArea').innerHTML = '<div class="empty-state"><i class="bi bi-person-x"></i><h5>No hay alumnos</h5></div>';
+                return;
+            }
+            const userName = document.getElementById('userName').textContent;
+            const isPreescolar = esc.nivel === 'Preescolar';
+            const sorted = [...data.alumnos].sort((a, b) => a.numero - b.numero);
+
+            let html = '<div class="report-preview" id="reportContent">';
+            html += getReportHeader(esc, grp, null, userName);
+            html += '<table class="report-table"><thead><tr>';
+            if (isPreescolar) {
+                html += '<th style="width:40px">N°</th><th style="width:180px">Alumno</th><th style="text-align:left">Trimestre 1 (Comentario)</th><th style="text-align:left">Trimestre 2 (Comentario)</th><th style="text-align:left">Trimestre 3 (Comentario)</th>';
+                html += '</tr></thead><tbody>';
+
+                for (const alu of sorted) {
+                    let cells = '';
+                    for (let t = 1; t <= 3; t++) {
+                        const ev = evaluacionesData[alu.id + '_' + t];
+                        if (ev && ev.comentario) {
+                            cells += '<td style="font-size:0.85rem;">' + escapeHtml(ev.comentario) + '</td>';
+                        } else {
+                            cells += '<td style="text-align:center;color:#aaa">—</td>';
+                        }
+                    }
+                    const alumnoNombre = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                    html += '<tr>' +
+                        '<td><strong>' + alu.numero + '</strong></td>' +
+                        '<td>' + escapeHtml(alumnoNombre) + '</td>' +
+                        cells +
+                        '</tr>';
+                }
+                html += '<th style="width:40px">N°</th><th style="width:220px">Alumno</th><th style="width:50px;text-align:center">T1</th><th style="width:50px;text-align:center">T2</th><th style="width:50px;text-align:center">T3</th>';
+                html += '<th style="width:80px;text-align:center">Promedio</th>';
+                html += '</tr></thead><tbody>';
+
+                for (const alu of sorted) {
+                    let grades = [];
+                    let cells = '';
+                    for (let t = 1; t <= 3; t++) {
+                        const ev = evaluacionesData[alu.id + '_' + t];
+                        if (ev) {
+                            cells += '<td style="text-align:center;font-weight:600">' + (ev.calificacionFinal || '—') + '</td>';
+                            if (typeof ev.calificacionFinal === 'number') grades.push(ev.calificacionFinal);
+                        } else {
+                            cells += '<td style="text-align:center;color:#aaa">—</td>';
+                        }
+                    }
+                    const alumnoNombre = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                    const avg = grades.length > 0 ? (Math.round(grades.reduce((s, v) => s + v, 0) / grades.length * 10) / 10) : '—';
+                    html += '<tr>' +
+                        '<td><strong>' + alu.numero + '</strong></td>' +
+                        '<td>' + escapeHtml(alumnoNombre) + '</td>' +
+                        cells +
+                        '<td style="text-align:center;font-weight:700;color:var(--primary)">' + avg + '</td>' +
+                        '</tr>';
+                }
+            }
+            html += '</tbody></table></div>';
+            document.getElementById('reportPrintArea').innerHTML = html;
+        }
+
+        function exportReportPDF() {
+            const { jsPDF } = window.jspdf;
+            if (!jsPDF) {
+                alert("La librería de PDF no se ha cargado correctamente. Verifica tu conexión.");
+                return;
+            }
+            const doc = new jsPDF('p', 'mm', 'letter');
+
+            const schoolId = document.getElementById('reportSchool').value;
+            const groupId = document.getElementById('reportGroup').value;
+            const trimester = document.getElementById('reportTrimester').value;
+            const esc = appData.escuelas.find(e => e.id === schoolId);
+            if (!esc) return;
+            const grp = esc.grupos.find(g => g.id === groupId);
+            if (!grp) return;
+            const data = alumnosData[groupId];
+            if (!data) return;
+            const userName = document.getElementById('userName').textContent;
+            const isPreescolar = esc.nivel === 'Preescolar';
+            const sorted = [...data.alumnos].sort((a, b) => a.numero - b.numero);
+
+            // Brand Colors
+            const navy = [0, 31, 63];
+            const gray = [80, 80, 80];
+
+            // Header with Logo
+            try {
+                // Logo position and size (proportional to 3645x1523)
+                const logoW = 35;
+                const logoH = (logoW * 1523) / 3645;
+                doc.addImage('icons/profef 1.png', 'PNG', 10, 10, logoW, logoH);
+            } catch (e) {
+                console.warn("Logo not found for PDF", e);
+            }
+
+            doc.setFontSize(16);
+            doc.setTextColor(navy[0], navy[1], navy[2]);
+            doc.text('Evaluando Educación Física', doc.internal.pageSize.getWidth() / 2 + 10, 18, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setTextColor(gray[0], gray[1], gray[2]);
+            const headerLines = [
+                esc.nombre,
+                esc.nivel + ' - ' + grp.grado + grp.letra + ' - Turno ' + esc.turno,
+                'Ciclo: ' + esc.ciclo + '  |  Docente: ' + userName,
+                (currentReportTab === 'grupo' ? 'Trimestre ' + trimester : 'Boleta — 3 Trimestres')
+            ];
+            let yPos = 26;
+            for (const line of headerLines) {
+                doc.text(line, doc.internal.pageSize.getWidth() / 2 + 10, yPos, { align: 'center' });
+                yPos += 5;
+            }
+
+            if (currentReportTab === 'grupo') {
+                const tableRows = sorted.map(alu => {
+                    const ev = evaluacionesData[alu.id + '_' + trimester];
+                    const grade = ev ? (isPreescolar ? 'S/C' : String(ev.calificacionFinal || '—')) : '—';
+                    const comment = ev ? (ev.comentario || '') : '';
+                    const nombreTrunc = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                    return [String(alu.numero), nombreTrunc, grade, comment];
+                });
+
+                doc.autoTable({
+                    startY: yPos + 4,
+                    head: [['N°', 'Alumno', 'Calif.', 'Comentario']],
+                    body: tableRows,
+                    styles: { fontSize: 8.5, cellPadding: 2.5 },
+                    headStyles: { fillColor: navy, textColor: 255, fontStyle: 'bold' },
+                    columnStyles: {
+                        0: { cellWidth: 10, halign: 'center' },
+                        1: { cellWidth: 55 },
+                        2: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+                        3: { cellWidth: 'auto' }
+                    },
+                    alternateRowStyles: { fillColor: [245, 248, 250] }
+                });
+            } else {
+                if (isPreescolar) {
+                    const tableRows = sorted.map(alu => {
+                        const row = [String(alu.numero)];
+                        const nombreTrunc = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                        row.push(nombreTrunc);
+                        for (let t = 1; t <= 3; t++) {
+                            const ev = evaluacionesData[alu.id + '_' + t];
+                            row.push(ev && ev.comentario ? ev.comentario : '—');
+                        }
+                        return row;
+                    });
+
+                    doc.autoTable({
+                        startY: yPos + 4,
+                        head: [['N°', 'Alumno', 'Trimestre 1', 'Trimestre 2', 'Trimestre 3']],
+                        body: tableRows,
+                        styles: { fontSize: 7.5, cellPadding: 2 },
+                        headStyles: { fillColor: navy, textColor: 255, fontStyle: 'bold' },
+                        columnStyles: {
+                            0: { cellWidth: 8, halign: 'center' },
+                            1: { cellWidth: 42 },
+                            2: { cellWidth: 45 },
+                            3: { cellWidth: 45 },
+                            4: { cellWidth: 45 }
+                        },
+                        alternateRowStyles: { fillColor: [245, 248, 250] }
+                    });
+                } else {
+                    const tableRows = sorted.map(alu => {
+                        const row = [String(alu.numero)];
+                        const nombreTrunc = alu.nombre.length > 60 ? alu.nombre.substring(0, 57) + '...' : alu.nombre;
+                        row.push(nombreTrunc);
+                        let grades = [];
+                        for (let t = 1; t <= 3; t++) {
+                            const ev = evaluacionesData[alu.id + '_' + t];
+                            if (ev) {
+                                const g = String(ev.calificacionFinal || '—');
+                                row.push(g);
+                                if (typeof ev.calificacionFinal === 'number') grades.push(ev.calificacionFinal);
+                            } else {
+                                row.push('—');
+                            }
+                        }
+                        const avg = grades.length > 0 ? String(Math.round(grades.reduce((s, v) => s + v, 0) / grades.length * 10) / 10) : '—';
+                        row.push(avg);
+                        return row;
+                    });
+
+                    doc.autoTable({
+                        startY: yPos + 4,
+                        head: [['N°', 'Alumno', 'T1', 'T2', 'T3', 'Prom.']],
+                        body: tableRows,
+                        styles: { fontSize: 8.5, cellPadding: 2.5 },
+                        headStyles: { fillColor: navy, textColor: 255, fontStyle: 'bold' },
+                        columnStyles: {
+                            0: { cellWidth: 10, halign: 'center' },
+                            1: { cellWidth: 70 },
+                            2: { cellWidth: 14, halign: 'center' },
+                            3: { cellWidth: 14, halign: 'center' },
+                            4: { cellWidth: 14, halign: 'center' },
+                            5: { cellWidth: 16, halign: 'center', fontStyle: 'bold' }
+                        },
+                        alternateRowStyles: { fillColor: [245, 248, 250] }
+                    });
+                }
+            }
+
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text('Generado por Evaluando Educación Física | PROFEf', doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
+
+            const fileName = esc.nombre.replace(/[^a-zA-Z0-9]/g, '_') + '_' + grp.grado + grp.letra + (currentReportTab === 'grupo' ? '_T' + trimester : '_Gral') + '.pdf';
+            lastReportFileName = fileName;
+            lastReportPdfBytes = doc.output('arraybuffer');
+            doc.save(fileName);
+            showSaveToast('PDF descargado: ' + fileName);
+        }
+
+        async function saveReportToDrive() {
+            if (!lastReportPdfBytes) {
+                showSaveToast('Preparando PDF...');
+                exportReportPDF();
+            }
+            if (!lastReportPdfBytes) {
+                alert('No se pudo generar el contenido del PDF.');
+                return;
+            }
+            try {
+                showSaveToast('Subiendo reporte a Drive...');
+                updateSyncStatus('syncing', 'Subiendo reporte...');
+                const metadata = {
+                    name: lastReportFileName,
+                    mimeType: 'application/pdf',
+                    parents: [reportesFolderId]
+                };
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', new Blob([lastReportPdfBytes], { type: 'application/pdf' }));
+                const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + accessToken },
+                    body: form
+                });
+
+                if (!res.ok) throw new Error('Error al subir: ' + res.status);
+
+                const file = await res.json();
+                lastReportDriveId = file.id;
+                updateSyncStatus('saved');
+                showSaveToast('¡Reporte guardado en Drive!');
+            } catch (err) {
+                console.error('Save report to Drive error:', err);
+                updateSyncStatus('offline', 'Error al guardar PDF');
+                alert('Error al guardar el reporte en Google Drive. Verifica tu conexión e intenta de nuevo.');
+            }
+        }
+
+
+        /* ═══════════════════════════════════════════
+           INIT
+           ═══════════════════════════════════════════ */
+        initAuth();
+    </script>
+
+</body>
+
+</html>
