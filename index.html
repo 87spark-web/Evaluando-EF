@@ -2114,6 +2114,15 @@
         let evaluacionesFolderId = '';
         let reportesFolderId = '';
 
+        async function listFilesInFolder(folderId) {
+            const q = `'${folderId}' in parents and trashed=false and mimeType='application/json'`;
+            const res = await driveRequest(
+                'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) +
+                '&fields=files(id,name)&pageSize=1000'
+            );
+            return (res.files || []);
+        }
+
         async function initDrive() {
             try {
                 updateSyncStatus('syncing');
@@ -2133,6 +2142,34 @@
                     for (const grp of esc.grupos) {
                         const data = await readJsonFile(alumnosFolderId, grp.id + '.json');
                         if (data) alumnosData[grp.id] = data;
+                    }
+                }
+
+                // Load rasgos (evaluation traits)
+                const rasgosFiles = await listFilesInFolder(rasgosFolderId);
+                for (const rf of rasgosFiles) {
+                    const key = rf.name.replace('.json', '');
+                    driveFileIds[rf.name] = rf.id;
+                    const content = await fetch(
+                        'https://www.googleapis.com/drive/v3/files/' + rf.id + '?alt=media',
+                        { headers: { 'Authorization': 'Bearer ' + accessToken } }
+                    );
+                    if (content.ok) {
+                        rasgosData[key] = await content.json();
+                    }
+                }
+
+                // Load evaluaciones (student evaluations)
+                const evalFiles = await listFilesInFolder(evaluacionesFolderId);
+                for (const ef of evalFiles) {
+                    const key = ef.name.replace('.json', '');
+                    driveFileIds[ef.name] = ef.id;
+                    const content = await fetch(
+                        'https://www.googleapis.com/drive/v3/files/' + ef.id + '?alt=media',
+                        { headers: { 'Authorization': 'Bearer ' + accessToken } }
+                    );
+                    if (content.ok) {
+                        evaluacionesData[key] = await content.json();
                     }
                 }
 
