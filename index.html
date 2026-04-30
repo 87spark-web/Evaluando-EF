@@ -1397,9 +1397,9 @@
                                 <label class="form-label small fw-bold">Trimestre</label>
                                 <select id="rasgosTrimester" class="form-select" onchange="onRasgosFilterChange()">
                                     <option value="">Seleccionar...</option>
-                                    <option value="1">1er Trimestre</option>
-                                    <option value="2">2do Trimestre</option>
-                                    <option value="3">3er Trimestre</option>
+                                    <option value="1">1° Trimestre</option>
+                                    <option value="2">2° Trimestre</option>
+                                    <option value="3">3° Trimestre</option>
                                 </select>
                             </div>
                         </div>
@@ -1845,8 +1845,13 @@
            STATE
            ═══════════════════════════════════════════ */
         let accessToken = '';
+        let tokenExpiresAt = 0;
+        let userEmail = '';
         let driveFolderId = '';
         let driveFileIds = {};
+        let evalDirty = false;
+        let autoSaveTimer = null;
+        const AUTO_SAVE_DELAY = 5000;
         let currentSchoolId = '';
         let currentGroupId = '';
         let deleteCallback = null;
@@ -1913,8 +1918,9 @@
         }
 
         function logout() {
-            localStorage.clear();
             accessToken = '';
+            tokenExpiresAt = 0;
+            userEmail = '';
             location.href = window.location.origin + window.location.pathname;
         }
 
@@ -1922,7 +1928,12 @@
             const hash = window.location.hash.substring(1);
             if (!hash) return null;
             const params = new URLSearchParams(hash);
-            return params.get('access_token');
+            const token = params.get('access_token');
+            const expiresIn = parseInt(params.get('expires_in') || '3600', 10);
+            if (token) {
+                tokenExpiresAt = Date.now() + (expiresIn * 1000) - 60000;
+            }
+            return token;
         }
 
         async function initAuth() {
@@ -1955,6 +1966,8 @@
                 if (!userRes.ok) throw new Error('Token inválido o expirado');
                 const user = await userRes.json();
 
+                userEmail = user.email || '';
+
                 // Primero intentamos usar el nombre personalizado de appData si existe
                 const displayName = appData.nombreDocente || user.name || user.email;
                 document.getElementById('userName').textContent = displayName;
@@ -1968,12 +1981,31 @@
                     document.getElementById('userName').textContent = appData.nombreDocente;
                 }
 
+                // Registrar propietario para validación de seguridad
+                if (userEmail && !appData.ownerEmail) {
+                    appData.ownerEmail = userEmail;
+                    await saveSchoolsToDrive();
+                }
+
+                scheduleTokenRefresh();
                 navigateTo('dashboard');
             } catch (err) {
                 console.error("Login Error:", err);
                 alert("Hubo un problema al leer tu perfil de Google. Por favor, reintenta iniciar sesión.");
                 window.location.hash = '';
             }
+        }
+
+        function scheduleTokenRefresh() {
+            const msUntilExpiry = tokenExpiresAt - Date.now();
+            if (msUntilExpiry <= 0) return;
+            setTimeout(function () {
+                if (accessToken && confirm('Tu sesión está a punto de expirar. ¿Deseas renovarla?')) {
+                    handleGoogleLogin();
+                } else {
+                    updateSyncStatus('offline', 'Sesión expirada');
+                }
+            }, msUntilExpiry);
         }
 
         /* ── PROFILE MANAGEMENT ── */
@@ -2013,6 +2045,13 @@
            ═══════════════════════════════════════════ */
 
         async function driveRequest(url, options = {}) {
+            if (tokenExpiresAt > 0 && Date.now() >= tokenExpiresAt) {
+                updateSyncStatus('offline', 'Sesión expirada');
+                if (confirm('Tu sesión ha expirado. ¿Deseas iniciar sesión de nuevo?')) {
+                    handleGoogleLogin();
+                }
+                throw new Error('Token expired');
+            }
             try {
                 const res = await fetch(url, {
                     ...options,
@@ -2020,7 +2059,13 @@
                 });
                 if (!res.ok) {
                     if (res.status === 401) {
-                        handleSignOut(); // Token expired
+                        accessToken = '';
+                        tokenExpiresAt = 0;
+                        updateSyncStatus('offline', 'Sesión expirada');
+                        if (confirm('Tu sesión ha expirado. ¿Deseas iniciar sesión de nuevo?')) {
+                            handleGoogleLogin();
+                        }
+                        throw new Error('Token expired (401)');
                     }
                     throw new Error('Drive API error: ' + res.status);
                 }
@@ -2061,10 +2106,15 @@
             const q = `name='${fileName}' and '${parentId}' in parents and trashed=false`;
             const res = await driveRequest('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
             if (!res.files || res.files.length === 0) return null;
-            driveFileIds[fileName] = res.files[0].id;
+            const fileKey = parentId + '/' + fileName;
+            driveFileIds[fileKey] = res.files[0].id;
             const content = await fetch('https://www.googleapis.com/drive/v3/files/' + res.files[0].id + '?alt=media', {
                 headers: { 'Authorization': 'Bearer ' + accessToken }
             });
+            if (!content.ok) {
+                console.error('Error leyendo archivo:', fileName, content.status);
+                return null;
+            }
             return content.json();
         }
 
@@ -2072,16 +2122,21 @@
             updateSyncStatus('syncing');
             const body = JSON.stringify(data, null, 2);
             const metadata = { name: fileName, mimeType: 'application/json' };
-            const existingId = driveFileIds[fileName];
+            const fileKey = parentId + '/' + fileName;
+            const existingId = driveFileIds[fileKey];
             if (existingId) {
                 const form = new FormData();
                 form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
                 form.append('file', new Blob([body], { type: 'application/json' }));
-                await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart', {
+                const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart', {
                     method: 'PATCH',
                     headers: { 'Authorization': 'Bearer ' + accessToken },
                     body: form
                 });
+                if (!res.ok) {
+                    const errText = await res.text().catch(function () { return ''; });
+                    throw new Error('Drive PATCH error: ' + res.status + ' ' + errText);
+                }
             } else {
                 metadata.parents = [parentId];
                 const form = new FormData();
@@ -2092,21 +2147,29 @@
                     headers: { 'Authorization': 'Bearer ' + accessToken },
                     body: form
                 });
+                if (!res.ok) {
+                    const errText = await res.text().catch(function () { return ''; });
+                    throw new Error('Drive POST error: ' + res.status + ' ' + errText);
+                }
                 const created = await res.json();
-                driveFileIds[fileName] = created.id;
+                driveFileIds[fileKey] = created.id;
             }
             updateSyncStatus('saved');
             showSaveToast('Guardado en Drive');
         }
 
-        async function deleteJsonFile(fileName) {
-            const fileId = driveFileIds[fileName];
+        async function deleteJsonFile(parentId, fileName) {
+            const fileKey = parentId + '/' + fileName;
+            const fileId = driveFileIds[fileKey];
             if (!fileId) return;
-            await fetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
+            const res = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + accessToken }
             });
-            delete driveFileIds[fileName];
+            if (!res.ok && res.status !== 404) {
+                console.error('Error eliminando archivo:', fileName, res.status);
+            }
+            delete driveFileIds[fileKey];
         }
 
         let alumnosFolderId = '';
@@ -2149,7 +2212,7 @@
                 const rasgosFiles = await listFilesInFolder(rasgosFolderId);
                 for (const rf of rasgosFiles) {
                     const key = rf.name.replace('.json', '');
-                    driveFileIds[rf.name] = rf.id;
+                    driveFileIds[rasgosFolderId + '/' + rf.name] = rf.id;
                     const content = await fetch(
                         'https://www.googleapis.com/drive/v3/files/' + rf.id + '?alt=media',
                         { headers: { 'Authorization': 'Bearer ' + accessToken } }
@@ -2163,7 +2226,7 @@
                 const evalFiles = await listFilesInFolder(evaluacionesFolderId);
                 for (const ef of evalFiles) {
                     const key = ef.name.replace('.json', '');
-                    driveFileIds[ef.name] = ef.id;
+                    driveFileIds[evaluacionesFolderId + '/' + ef.name] = ef.id;
                     const content = await fetch(
                         'https://www.googleapis.com/drive/v3/files/' + ef.id + '?alt=media',
                         { headers: { 'Authorization': 'Bearer ' + accessToken } }
@@ -2353,9 +2416,9 @@
             document.getElementById('dashCountStudents').textContent = totalStudents;
 
             const triProgress = [
-                { id: '1', label: '1er Trimestre' },
-                { id: '2', label: '2do Trimestre' },
-                { id: '3', label: '3er Trimestre' }
+                { id: '1', label: '1° Trimestre' },
+                { id: '2', label: '2° Trimestre' },
+                { id: '3', label: '3° Trimestre' }
             ];
 
             let html = '';
@@ -2441,7 +2504,7 @@
                 </div>`;
             });
 
-            document.getElementById('dashProgressCards').innerHTML = html || '<div class="col-12 text-center py-4 text-muted">Aun no hay datos registrados</div>';
+            document.getElementById('dashProgressCards').innerHTML = html || '<div class="col-12 text-center py-4 text-muted">Aún no hay datos registrados</div>';
         }
 
         function toggleDashDetail(id) {
@@ -2573,7 +2636,7 @@
             confirmDelete('Se eliminará "' + esc.nombre + '" y todos sus grupos y alumnos.', async () => {
                 for (const grp of esc.grupos) {
                     delete alumnosData[grp.id];
-                    await deleteJsonFile(grp.id + '.json');
+                    await deleteJsonFile(alumnosFolderId, grp.id + '.json');
                 }
                 appData.escuelas = appData.escuelas.filter(e => e.id !== id);
                 await saveSchoolsToDrive();
@@ -2667,7 +2730,7 @@
             confirmDelete('Se eliminará el grupo ' + grp.grado + grp.letra + ' y todos sus alumnos.', async () => {
                 esc.grupos = esc.grupos.filter(g => g.id !== id);
                 delete alumnosData[id];
-                await deleteJsonFile(id + '.json');
+                await deleteJsonFile(alumnosFolderId, id + '.json');
                 await saveSchoolsToDrive();
                 renderGroups(esc);
             });
@@ -3240,6 +3303,7 @@
 
             // Re-calculate grade behind the scenes
             calculateGradeForStudent(alumnoId);
+            markEvalDirty();
         }
 
         function overrideGradeForStudent(alumnoId, valStr) {
@@ -3261,6 +3325,7 @@
             }
 
             calculateGradeForStudent(alumnoId);
+            markEvalDirty();
             // Update UI label if in Resume mode
             const gradeBadge = document.getElementById('resumenGrade_' + alumnoId);
             if (gradeBadge) {
@@ -3362,6 +3427,7 @@
                 icon.className = evalData.comentario !== '' ? 'bi bi-chat-left-text-fill text-success' : 'bi bi-chat-left-text';
             }
 
+            markEvalDirty();
             showSection('secEvaluacion');
         }
 
@@ -3404,24 +3470,31 @@
             btn.disabled = true;
 
             const data = alumnosData[currentEvalGroupId];
+            let savedCount = 0;
 
             try {
-                // To avoid sending 30 concurrent requests and hitting rate limits, 
-                // we batch them or send them sequentially. We'll send them sequentially for maximum safety.
                 for (const alu of data.alumnos) {
                     const evalKey = alu.id + '_' + currentEvalTrimestre;
                     const evalData = evaluacionesData[evalKey];
-                    // Only save if there are selections or a comment or a manual grade
-                    const hasData = Object.keys(evalData.selecciones).length > 0 || evalData.comentario !== '' || evalData.calificacionManual !== undefined;
+                    if (!evalData) continue;
 
-                    if (hasData) {
+                    // Guardar si tiene selecciones, comentario, calificación manual o calificación calculada
+                    const hasSelections = Object.keys(evalData.selecciones || {}).length > 0;
+                    const hasComment = evalData.comentario && evalData.comentario !== '';
+                    const hasManualGrade = evalData.calificacionManual !== undefined;
+                    const hasCalculatedGrade = evalData.calificacionCalculada !== undefined && evalData.calificacionCalculada !== 0;
+
+                    if (hasSelections || hasComment || hasManualGrade || hasCalculatedGrade) {
                         evalData.timestamp = new Date().toISOString();
                         await writeJsonFile(evaluacionesFolderId, evalKey + '.json', evalData);
+                        savedCount++;
                     }
                 }
 
+                evalDirty = false;
+                clearTimeout(autoSaveTimer);
                 updateSyncStatus('saved', 'Evaluaciones guardadas');
-                showSaveToast('Evaluaciones del grupo guardadas exitosamente', 3000);
+                showSaveToast('Guardadas ' + savedCount + ' evaluaciones exitosamente', 3000);
             } catch (err) {
                 console.error('Error saving group evals:', err);
                 updateSyncStatus('offline', 'Error de guardado');
@@ -3430,6 +3503,24 @@
                 btn.disabled = false;
             }
         }
+
+        function markEvalDirty() {
+            evalDirty = true;
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function () {
+                if (evalDirty && navigator.onLine && currentEvalGroupId) {
+                    saveAllEvaluations();
+                }
+            }, AUTO_SAVE_DELAY);
+        }
+
+        window.addEventListener('beforeunload', function (e) {
+            if (evalDirty) {
+                e.preventDefault();
+                e.returnValue = 'Tienes evaluaciones sin guardar. ¿Estás seguro de que deseas salir?';
+                return e.returnValue;
+            }
+        });
 
         /* ═══════════════════════════════════════════
            REPORTS MODULE

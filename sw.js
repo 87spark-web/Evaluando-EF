@@ -1,12 +1,13 @@
 /**
- * Service Worker — Evaluando Educación Física v2
+ * Service Worker — Evaluando Educación Física v3
  * 
- * Estrategia: Cache-First para shell assets, Network-First para APIs de Google.
- * Cuando no hay red, se sirven los recursos del cache y se muestra la app offline.
- * Los CDN de jsPDF se cachean para permitir exportar PDFs sin conexión.
+ * Estrategia:
+ * - Network-First para HTML (asegura actualizaciones de seguridad rápidas)
+ * - Cache-First con actualización en background para CDN assets
+ * - Network-Only para APIs de Google
  */
 
-const CACHE_NAME = 'evaluando-ef-v2';
+const CACHE_NAME = 'evaluando-ef-v3';
 
 const SHELL_ASSETS = [
     './',
@@ -39,11 +40,11 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-/* ── FETCH: Cache-First para shell, Network-Only para Google APIs ── */
+/* ── FETCH: Network-First para HTML, Cache-First para assets, Network-Only para Google ── */
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Google APIs siempre van a la red; si falla, se reporta al app
+    // Google APIs siempre van a la red
     if (url.hostname === 'www.googleapis.com' ||
         url.hostname === 'accounts.google.com' ||
         url.hostname === 'oauth2.googleapis.com') {
@@ -58,7 +59,24 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Todo lo demás: Cache-First con actualización en background
+    // HTML pages: Network-First (para actualizaciones de seguridad rápidas)
+    if (event.request.mode === 'navigate' ||
+        (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+        event.respondWith(
+            fetch(event.request).then((response) => {
+                if (response && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                }
+                return response;
+            }).catch(() => {
+                return caches.match(event.request).then((cached) => cached || caches.match('./index.html'));
+            })
+        );
+        return;
+    }
+
+    // Todo lo demás (CSS, JS, fonts): Cache-First con actualización en background
     event.respondWith(
         caches.match(event.request).then((cached) => {
             const networkFetch = fetch(event.request).then((response) => {
@@ -72,3 +90,4 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
